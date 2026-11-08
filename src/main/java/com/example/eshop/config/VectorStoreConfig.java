@@ -25,14 +25,11 @@ public class VectorStoreConfig {
 
     @Bean
     public VectorStore vectorStore(EmbeddingModel embeddingModel) {
-        // Sử dụng SimpleVectorStore nội tại của Spring AI 1.0.0-M6 theo Slide 9 & 12
+        // Cấu hình SimpleVectorStore của Spring AI
         return SimpleVectorStore.builder(embeddingModel).build();
     }
 
-    /**
-     * ETL Pipeline (Extract - Transform - Load):
-     * Đọc toàn bộ sản phẩm thực từ MariaDB, vector hóa ngữ nghĩa và nạp vào Vector Database
-     */
+    // Nạp dữ liệu sản phẩm từ database vào VectorStore khi khởi động
     @Bean
     public CommandLineRunner initVectorStore(VectorStore vectorStore) {
         return args -> {
@@ -44,7 +41,7 @@ public class VectorStoreConfig {
                 List<Document> documents = new ArrayList<>();
 
                 for (Product p : products) {
-                    // Tạo đoạn văn bản đại diện cho nhiều chiều tiêu chí (chủng loại, tầm giá, tính năng, nhu cầu)
+                    // Chuẩn hóa nội dung mô tả sản phẩm để embedding
                     String semanticText = String.format(
                         "Sản phẩm: %s. Danh mục: %s. Mức giá: %s VNĐ. Tồn kho: %d chiếc. " +
                         "Mô tả chi tiết và tính năng: %s. Thích hợp: học tập, văn phòng, gaming, đồ họa, giải trí, máy tính xách tay, máy tính bảng.",
@@ -61,6 +58,7 @@ public class VectorStoreConfig {
                             "productId", p.getId(),
                             "name", p.getName(),
                             "price", p.getPrice().doubleValue(),
+                            "stock", p.getQuantity(),
                             "category", p.getCategory() != null ? p.getCategory().getName() : ""
                         ))
                         .build();
@@ -71,12 +69,12 @@ public class VectorStoreConfig {
                     try {
                         vectorStore.add(documents);
                     } catch (Exception ex) {
-                        log.warn("Lưu ý: Không thể kết nối Embedding Model bên ngoài ({}), hệ thống sẽ sử dụng Vector Store ngữ nghĩa cục bộ.", ex.getMessage());
+                        log.warn("Không thể kết nối Embedding Model bên ngoài: {}", ex.getMessage());
                     }
-                    System.out.println(">>> [SPRING AI] NẠP THÀNH CÔNG " + documents.size() + " SẢN PHẨM VÀO VECTOR STORE <<<");
+                    log.info("Nạp thành công {} sản phẩm vào VectorStore", documents.size());
                 }
             } catch (Exception e) {
-                log.warn("Lỗi khi khởi tạo Vector Store: {}", e.getMessage());
+                log.warn("Lỗi khi khởi tạo VectorStore: {}", e.getMessage());
             }
         };
     }

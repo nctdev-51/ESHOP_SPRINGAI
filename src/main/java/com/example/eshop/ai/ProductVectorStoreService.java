@@ -17,18 +17,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Triển khai Vector Database và Cosine Similarity theo Slide Spring AI (Slide 12, 13, 14).
- * 
- * 1. Ingestion (ETL):
- *    - Document Reader: Đọc toàn bộ Product và Category từ MariaDB.
- *    - Transformer (chunking): Chuyển thành Document giàu ngữ nghĩa (semantic description).
- *    - Embedding Model: Vector hoá từ ngữ & đặc tính (Semantic Pointer & Multi-dimensional Vector).
- *    - Vector Store: Lưu trữ và tra cứu theo Cosine Similarity:
- *      cos(θ) = (A · B) / (‖A‖ ‖B‖)
- * 
- * 2. Semantic Search & Metadata Filtering:
- *    - "máy tính" tự động liên kết ngữ nghĩa với: Laptop (gaming, văn phòng, workstation), Tablet (máy tính bảng), PC...
- *    - Kết hợp tiêu chí lọc: Giá (ví dụ < 10 triệu), Màu sắc (màu đỏ, màu đen...), Danh mục.
+ * Service xử lý tìm kiếm ngữ nghĩa (Semantic Search) và tính Cosine Similarity.
  */
 @Service
 @RequiredArgsConstructor
@@ -38,14 +27,13 @@ public class ProductVectorStoreService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
 
-    // Bộ nhớ Vector Store lưu trữ Document và Vector Embedding của từng sản phẩm
+    // Danh sách lưu trữ Document và Vector Embedding của sản phẩm trong bộ nhớ
     private final List<ProductDocument> vectorStore = new ArrayList<>();
 
-    // Từ điển ngữ nghĩa (Semantic Lexicon) ánh xạ từ khoá sang các khái niệm công nghệ liên quan
+    // Từ điển ánh xạ từ khóa tương đồng phục vụ tìm kiếm ngữ nghĩa
     private static final Map<String, List<String>> SEMANTIC_SYNONYMS = new HashMap<>();
 
     static {
-        // "máy tính" liên kết với laptop, văn phòng, gaming, workstation, tablet (máy tính bảng), pc
         SEMANTIC_SYNONYMS.put("máy tính", List.of("laptop", "máy tính xách tay", "máy tính bảng", "tablet", "ipad", "macbook", "pc", "workstation", "gaming", "văn phòng", "học tập"));
         SEMANTIC_SYNONYMS.put("may tinh", List.of("laptop", "may tinh xach tay", "may tinh bang", "tablet", "ipad", "macbook", "pc", "workstation", "gaming"));
         SEMANTIC_SYNONYMS.put("laptop", List.of("máy tính", "máy tính xách tay", "notebook", "macbook", "vivobook", "inspiron", "thinkpad", "gaming", "văn phòng", "workstation"));
@@ -79,9 +67,7 @@ public class ProductVectorStoreService {
             double similarityScore
     ) {}
 
-    /**
-     * ETL Ingestion: Chạy khi hệ thống khởi động để nạp dữ liệu từ MariaDB vào Vector Database
-     */
+    // Load dữ liệu sản phẩm từ database vào bộ nhớ khi khởi động
     @PostConstruct
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public synchronized void ingestProductsFromDatabase() {
@@ -90,14 +76,14 @@ public class ProductVectorStoreService {
         if (products.isEmpty()) {
             products = productRepository.findAll();
         }
-        log.info("Bắt đầu Ingestion ETL dữ liệu từ MariaDB vào Vector Database. Tổng sản phẩm: {}", products.size());
+        log.info("Nạp dữ liệu từ MariaDB vào VectorStore. Tổng sản phẩm: {}", products.size());
 
         for (Product p : products) {
             String catName = p.getCategory() != null ? p.getCategory().getName() : "Khác";
             String detectedColor = detectColor(p.getName() + " " + p.getDescription());
             String fullSemanticText = buildSemanticText(p, catName, detectedColor);
 
-            // Sinh vector embedding cho sản phẩm dựa trên TF-IDF và trọng số ngữ nghĩa
+            // Tạo vector embedding cho sản phẩm
             Map<String, Double> vector = computeEmbeddingVector(fullSemanticText);
 
             ProductDocument doc = new ProductDocument(
@@ -115,12 +101,10 @@ public class ProductVectorStoreService {
             vectorStore.add(doc);
         }
 
-        log.info("Hoàn tất Ingestion ETL. Đã vector hoá {} tài liệu vào Vector Store.", vectorStore.size());
+        log.info("Hoàn tất nạp {} tài liệu vào VectorStore", vectorStore.size());
     }
 
-    /**
-     * Nhận diện màu sắc từ mô tả hoặc tên sản phẩm
-     */
+    // Nhận diện màu sắc từ mô tả hoặc tên sản phẩm
     private String detectColor(String text) {
         String lower = text.toLowerCase();
         if (lower.contains("đỏ") || lower.contains("red") || lower.contains("dragon ball")) return "Đỏ";
@@ -134,9 +118,7 @@ public class ProductVectorStoreService {
         return "Tiêu chuẩn";
     }
 
-    /**
-     * Xây dựng văn bản ngữ nghĩa toàn diện cho sản phẩm để embedding
-     */
+    // Xây dựng đoạn văn bản đại diện cho sản phẩm để embedding
     private String buildSemanticText(Product p, String catName, String color) {
         StringBuilder sb = new StringBuilder();
         sb.append(p.getName()).append(" ");
@@ -146,7 +128,7 @@ public class ProductVectorStoreService {
         }
         sb.append("Màu sắc: ").append(color).append(" ");
 
-        // Bổ sung các con trỏ ngữ nghĩa (Semantic Pointers) theo loại thiết bị
+        // Gắn thêm từ khóa phân loại thiết bị
         String lowerCat = catName.toLowerCase();
         String lowerName = p.getName().toLowerCase();
         String lowerDesc = (p.getDescription() != null ? p.getDescription() : "").toLowerCase();
@@ -168,7 +150,7 @@ public class ProductVectorStoreService {
             sb.append("phụ kiện máy tính gaming văn phòng ");
         }
 
-        // Bổ sung phân khúc giá
+        // Gắn nhãn phân khúc giá
         double priceVal = p.getPrice().doubleValue();
         if (priceVal < 5_000_000) {
             sb.append("giá rẻ dưới 5 triệu bình dân ");
@@ -183,9 +165,7 @@ public class ProductVectorStoreService {
         return sb.toString();
     }
 
-    /**
-     * Tính toán Vector Embedding biểu diễn ngữ nghĩa cho văn bản (TF-IDF + Semantic Pointers)
-     */
+    // Tính toán vector biểu diễn cho đoạn văn bản
     public Map<String, Double> computeEmbeddingVector(String text) {
         Map<String, Double> vector = new HashMap<>();
         if (text == null || text.isBlank()) return vector;
@@ -195,12 +175,13 @@ public class ProductVectorStoreService {
                 .trim();
         String[] tokens = cleaned.split("\\s+");
 
+        // Đếm tần suất xuất hiện của từng từ (TF)
         for (String t : tokens) {
             if (t.length() < 2) continue;
             vector.put(t, vector.getOrDefault(t, 0.0) + 1.0);
         }
 
-        // Kích hoạt các con trỏ vector ngữ nghĩa từ Semantic Lexicon (nằm ngoài vòng lặp tokens)
+        // Thêm trọng số cho các từ liên quan trong từ điển
         for (Map.Entry<String, List<String>> entry : SEMANTIC_SYNONYMS.entrySet()) {
             if (cleaned.contains(entry.getKey())) {
                 for (String syn : entry.getValue()) {
@@ -209,7 +190,7 @@ public class ProductVectorStoreService {
             }
         }
 
-        // Chuẩn hoá vector (L2 norm) để tính Cosine Similarity nhanh và chính xác
+        // Chuẩn hóa vector (L2 norm)
         double norm = 0.0;
         for (double v : vector.values()) {
             norm += v * v;
@@ -223,10 +204,7 @@ public class ProductVectorStoreService {
         return vector;
     }
 
-    /**
-     * Tính Cosine Similarity giữa 2 vector theo Slide 13:
-     * cos(θ) = (A · B) / (‖A‖ ‖B‖)
-     */
+    // Tính Cosine Similarity giữa 2 vector
     public double calculateCosineSimilarity(Map<String, Double> vecA, Map<String, Double> vecB) {
         if (vecA == null || vecB == null || vecA.isEmpty() || vecB.isEmpty()) {
             return 0.0;
@@ -238,16 +216,11 @@ public class ProductVectorStoreService {
                 dotProduct += entry.getValue() * valB;
             }
         }
-        // Vì cả 2 vector đã được chuẩn hoá L2 norm = 1, nên dot product chính là Cosine Similarity!
+        // Do đã chuẩn hóa L2 nên tích vô hướng chính là Cosine Similarity
         return Math.min(1.0, Math.max(0.0, dotProduct));
     }
 
-    /**
-     * Tìm kiếm sản phẩm theo ngữ nghĩa (Semantic Search) kết hợp bộ lọc tiêu chí (Metadata Filters)
-     * Đáp ứng trọn vẹn yêu cầu của cô:
-     * - Hỏi "máy tính dưới 10 triệu": tìm ra các loại laptop gaming, laptop văn phòng, workstation, tablet, pc... dưới 10 triệu.
-     * - Thêm tiêu chí màu sắc (ví dụ: "màu đỏ"): vector pointer sẽ liên kết và ưu tiên sản phẩm có màu đỏ.
-     */
+    // Tìm kiếm sản phẩm theo ngữ nghĩa kết hợp lọc theo giá, màu sắc, tồn kho
     public List<ScoredProduct> searchSemantic(String userQuery, int topK) {
         if (vectorStore.isEmpty()) {
             ingestProductsFromDatabase();
@@ -262,12 +235,20 @@ public class ProductVectorStoreService {
         // 2. Phân tích tiêu chí màu sắc
         String queryColor = extractQueryColor(lowerQuery);
 
-        // 3. Vector hoá câu hỏi của người dùng
+        // 3. Phân tích tiêu chí tình trạng tồn kho
+        boolean requireInStock = extractInStockRequirement(lowerQuery);
+
+        // 4. Vector hoá câu hỏi của người dùng
         Map<String, Double> queryVector = computeEmbeddingVector(userQuery);
 
         List<ScoredProduct> scoredList = new ArrayList<>();
 
         for (ProductDocument doc : vectorStore) {
+            // Lọc cứng theo tiêu chí tồn kho nếu yêu cầu còn hàng
+            if (requireInStock && doc.quantity() <= 0) {
+                continue;
+            }
+
             // Lọc cứng theo tiêu chí giá nếu người dùng có yêu cầu
             if (maxPrice != null && doc.price().compareTo(maxPrice) > 0) {
                 continue;
@@ -276,41 +257,56 @@ public class ProductVectorStoreService {
                 continue;
             }
 
-            // Tính điểm tương đồng Cosine Similarity giữa Vector câu hỏi và Vector sản phẩm
+            // Tính độ tương đồng Cosine
             double cosine = calculateCosineSimilarity(queryVector, doc.vector());
 
-            // Thưởng điểm nếu sản phẩm khớp tiêu chí màu sắc mà người dùng yêu cầu
+            // Thưởng điểm nếu sản phẩm khớp màu sắc yêu cầu
             if (queryColor != null && !queryColor.isEmpty()) {
                 if (doc.color().equalsIgnoreCase(queryColor) || doc.fullSemanticText().toLowerCase().contains(queryColor.toLowerCase())) {
-                    cosine += 0.35; // Cộng trọng số vector tiêu chí
+                    cosine += 0.35; // Ưu tiên sản phẩm đúng màu
                 }
             }
 
-            // Thưởng điểm nếu truy vấn máy tính khớp danh mục máy tính hoặc tablet
+            // Thưởng điểm nếu câu hỏi tìm máy tính khớp danh mục máy tính hoặc tablet
             if (lowerQuery.contains("máy tính") || lowerQuery.contains("may tinh")) {
                 String cat = doc.categoryName().toLowerCase();
                 if (cat.contains("laptop") || cat.contains("máy tính bảng") || cat.contains("màn hình")) {
-                    cosine += 0.15;
+                    cosine += 0.15; // Ưu tiên thiết bị phù hợp
                 }
             }
 
-            // Đảm bảo độ tương đồng chuẩn toán học trong khoảng [0.0, 1.0]
+            // Thưởng điểm chuyên biệt cho truy vấn "laptop gaming" hoặc "gaming"
+            if (lowerQuery.contains("gaming") || lowerQuery.contains("chơi game") || lowerQuery.contains("choi game")) {
+                String nameLower = doc.name().toLowerCase();
+                String descLower = (doc.description() != null ? doc.description() : "").toLowerCase();
+                String textLower = doc.fullSemanticText().toLowerCase();
+                if (nameLower.contains("gaming") || descLower.contains("gaming") || textLower.contains("rtx") || textLower.contains("144hz") || textLower.contains("165hz")) {
+                    cosine += 0.25; // Ưu tiên dòng máy gaming chuyên dụng
+                }
+            }
+
+            // Giới hạn trong khoảng [0.0, 1.0]
             cosine = Math.min(1.0, Math.max(0.0, cosine));
 
-            if (cosine > 0.05) { // Ngưỡng tương đồng
+            if (cosine > 0.05) {
                 scoredList.add(new ScoredProduct(doc, cosine));
             }
         }
 
-        // Xếp hạng theo độ tương đồng Cosine Similarity giảm dần
+        // Sắp xếp theo độ tương đồng giảm dần
         scoredList.sort((a, b) -> Double.compare(b.similarityScore(), a.similarityScore()));
 
         return scoredList.stream().limit(topK).collect(Collectors.toList());
     }
 
-    /**
-     * Trích xuất mức giá tối đa từ câu hỏi (ví dụ: "dưới 10 triệu", "< 15tr", "dưới 500k")
-     */
+    // Trích xuất yêu cầu còn hàng từ câu hỏi
+    private boolean extractInStockRequirement(String text) {
+        return text.contains("còn hàng") || text.contains("con hang")
+                || text.contains("sẵn hàng") || text.contains("san hang")
+                || text.contains("có sẵn") || text.contains("co san");
+    }
+
+    // Trích xuất giá tối đa từ câu hỏi (ví dụ: "dưới 10 triệu", "< 15tr")
     private BigDecimal extractMaxPrice(String text) {
         Pattern p1 = Pattern.compile("(?:dưới|<|nho hon|nhỏ hơn|tối đa|khong qua|không quá|đến|tới|-)\\s*(\\d+(?:[.,]\\d+)?)\\s*(triệu|tr|m|nghìn|k|dong|đ|vnd)?");
         Matcher m1 = p1.matcher(text);
@@ -322,7 +318,6 @@ public class ProductVectorStoreService {
             } else if (unit.contains("nghìn") || unit.contains("k")) {
                 return BigDecimal.valueOf((long) (num * 1_000));
             } else if (num < 1000) {
-                // Mặc định số nhỏ như 10, 15, 20 người dùng nói là triệu
                 return BigDecimal.valueOf((long) (num * 1_000_000));
             } else {
                 return BigDecimal.valueOf((long) num);
@@ -331,9 +326,7 @@ public class ProductVectorStoreService {
         return null;
     }
 
-    /**
-     * Trích xuất mức giá tối thiểu từ câu hỏi (ví dụ: "trên 5 triệu", "> 10tr")
-     */
+    // Trích xuất giá tối thiểu từ câu hỏi (ví dụ: "trên 5 triệu", "> 10tr")
     private BigDecimal extractMinPrice(String text) {
         Pattern p = Pattern.compile("(?:trên|>|lon hon|lớn hơn|tối thiểu|tu|từ)\\s*(\\d+(?:[.,]\\d+)?)\\s*(triệu|tr|m|nghìn|k)?");
         Matcher m = p.matcher(text);
@@ -351,9 +344,7 @@ public class ProductVectorStoreService {
         return null;
     }
 
-    /**
-     * Trích xuất tiêu chí màu sắc từ câu hỏi
-     */
+    // Trích xuất tiêu chí màu sắc từ câu hỏi
     private String extractQueryColor(String text) {
         if (text.contains("màu đỏ") || text.contains("mau do") || text.contains("màu red")) return "Đỏ";
         if (text.contains("màu đen") || text.contains("mau den") || text.contains("màu black")) return "Đen";
@@ -365,12 +356,69 @@ public class ProductVectorStoreService {
         return null;
     }
 
-    /**
-     * Thống kê theo các tiêu chí (Slide Spring AI: "thống kê theo 1 số tiêu chí,..."):
-     * - Thống kê theo phân khúc giá
-     * - Thống kê theo danh mục
-     * - Thống kê tồn kho và khoảng giá
-     */
+    // Cập nhật hoặc thêm mới 1 sản phẩm vào VectorStore khi Admin tạo/sửa
+    public synchronized void addOrUpdateProduct(Product product) {
+        if (product == null || product.getId() == null) return;
+        vectorStore.removeIf(d -> d.productId().equals(product.getId()));
+
+        String catName = product.getCategory() != null ? product.getCategory().getName() : "Khác";
+        String detectedColor = detectColor(product.getName() + " " + (product.getDescription() != null ? product.getDescription() : ""));
+        String fullSemanticText = buildSemanticText(product, catName, detectedColor);
+        Map<String, Double> vector = computeEmbeddingVector(fullSemanticText);
+
+        ProductDocument doc = new ProductDocument(
+                product.getId(),
+                product.getName(),
+                catName,
+                product.getPrice(),
+                product.getQuantity(),
+                product.getImageUrl(),
+                product.getDescription(),
+                detectedColor,
+                fullSemanticText,
+                vector
+        );
+        vectorStore.add(doc);
+        log.info("Đã cập nhật VectorStore cho sản phẩm #{} - {}", product.getId(), product.getName());
+    }
+
+    // Xóa sản phẩm khỏi VectorStore khi Admin xóa sản phẩm trong CSDL
+    public synchronized void removeProduct(Long productId) {
+        if (productId == null) return;
+        boolean removed = vectorStore.removeIf(d -> d.productId().equals(productId));
+        if (removed) {
+            log.info("Đã xóa sản phẩm #{} khỏi VectorStore", productId);
+        }
+    }
+
+    // Tìm kiếm sản phẩm tương đồng dựa trên User Preference Vector (cho module gợi ý)
+    public List<ScoredProduct> searchByUserVector(Map<String, Double> userVector, int topK, Set<Long> excludeProductIds, boolean inStockOnly) {
+        if (vectorStore.isEmpty()) {
+            ingestProductsFromDatabase();
+        }
+        if (userVector == null || userVector.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<ScoredProduct> scoredList = new ArrayList<>();
+        for (ProductDocument doc : vectorStore) {
+            if (excludeProductIds != null && excludeProductIds.contains(doc.productId())) {
+                continue;
+            }
+            if (inStockOnly && doc.quantity() <= 0) {
+                continue;
+            }
+            double cosine = calculateCosineSimilarity(userVector, doc.vector());
+            if (cosine > 0.05) {
+                scoredList.add(new ScoredProduct(doc, cosine));
+            }
+        }
+
+        scoredList.sort((a, b) -> Double.compare(b.similarityScore(), a.similarityScore()));
+        return scoredList.stream().limit(topK).collect(Collectors.toList());
+    }
+
+    // Thống kê sản phẩm theo phân khúc giá, danh mục và tồn kho
     public Map<String, Object> getProductStatistics() {
         if (vectorStore.isEmpty()) {
             ingestProductsFromDatabase();
@@ -379,7 +427,7 @@ public class ProductVectorStoreService {
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("totalProducts", vectorStore.size());
 
-        // 1. Thống kê theo phân khúc giá
+        // Phân khúc giá
         long under5m = vectorStore.stream().filter(d -> d.price().compareTo(BigDecimal.valueOf(5_000_000)) < 0).count();
         long from5mTo10m = vectorStore.stream().filter(d -> d.price().compareTo(BigDecimal.valueOf(5_000_000)) >= 0 && d.price().compareTo(BigDecimal.valueOf(10_000_000)) <= 0).count();
         long from10mTo20m = vectorStore.stream().filter(d -> d.price().compareTo(BigDecimal.valueOf(10_000_000)) > 0 && d.price().compareTo(BigDecimal.valueOf(20_000_000)) <= 0).count();
@@ -392,12 +440,12 @@ public class ProductVectorStoreService {
         priceRanges.put("Trên 20 triệu", over20m);
         stats.put("priceDistribution", priceRanges);
 
-        // 2. Thống kê theo danh mục
+        // Theo danh mục
         Map<String, Long> categoryCount = vectorStore.stream()
                 .collect(Collectors.groupingBy(ProductDocument::categoryName, LinkedHashMap::new, Collectors.counting()));
         stats.put("categoryCounts", categoryCount);
 
-        // 3. Thống kê tồn kho
+        // Tồn kho
         int totalStock = vectorStore.stream().mapToInt(ProductDocument::quantity).sum();
         long lowStockCount = vectorStore.stream().filter(d -> d.quantity() <= 10).count();
         stats.put("totalStock", totalStock);

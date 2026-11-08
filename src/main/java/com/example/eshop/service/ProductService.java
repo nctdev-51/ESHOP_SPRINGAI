@@ -1,5 +1,6 @@
 package com.example.eshop.service;
 
+import com.example.eshop.ai.ProductVectorStoreService;
 import com.example.eshop.entity.Product;
 import com.example.eshop.exception.NotFoundException;
 import com.example.eshop.repository.ProductRepository;
@@ -15,6 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProductService {
     private final ProductRepository productRepository;
+    private final ProductVectorStoreService vectorStoreService;
 
     public Page<Product> search(String keyword, Long categoryId, Pageable pageable) {
         return productRepository.search(keyword, categoryId, pageable);
@@ -26,16 +28,25 @@ public class ProductService {
 
     public Product findById(Long id) {
         return productRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("KhÃ´ng tÃ¬m tháº¥y sáº£n pháº©m cÃ³ ID: " + id));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy sản phẩm có ID: " + id));
     }
 
     @Transactional
     public Product save(Product product) {
-        return productRepository.save(product);
+        Product saved = productRepository.save(product);
+        // Tự động đồng bộ vector embedding vào VectorStore
+        try {
+            vectorStoreService.addOrUpdateProduct(saved);
+        } catch (Exception ignored) {}
+        return saved;
     }
 
     @Transactional
     public void delete(Long id) {
         productRepository.deleteById(id);
+        // Tự động xóa khỏi VectorStore
+        try {
+            vectorStoreService.removeProduct(id);
+        } catch (Exception ignored) {}
     }
 }

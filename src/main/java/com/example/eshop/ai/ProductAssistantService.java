@@ -138,23 +138,23 @@ public class ProductAssistantService {
         // 1. Nếu người dùng hỏi thống kê theo tiêu chí
         if (lower.contains("thống kê") || lower.contains("thong ke") || lower.contains("báo cáo") || lower.contains("phân khúc")) {
             Map<String, Object> stats = productTools.getProductStatistics("all");
-            StringBuilder sb = new StringBuilder("📊 **KẾT QUẢ THỐNG KÊ SẢN PHẨM THEO TIÊU CHÍ (Vector Database):**\n\n");
-            sb.append("• **Tổng số sản phẩm trong kho:** ").append(stats.get("totalProducts")).append(" mã sản phẩm\n");
-            sb.append("• **Tổng số lượng tồn kho:** ").append(stats.get("totalStock")).append(" chiếc\n");
-            sb.append("• **Sản phẩm sắp hết hàng (<= 10 chiếc):** ").append(stats.get("lowStockCount")).append(" sản phẩm\n\n");
+            StringBuilder sb = new StringBuilder("📊 KẾT QUẢ THỐNG KÊ SẢN PHẨM THEO TIÊU CHÍ (Vector Database):\n\n");
+            sb.append("• Tổng số sản phẩm trong kho: ").append(stats.get("totalProducts")).append(" mã sản phẩm\n");
+            sb.append("• Tổng số lượng tồn kho: ").append(stats.get("totalStock")).append(" chiếc\n");
+            sb.append("• Sản phẩm sắp hết hàng (<= 10 chiếc): ").append(stats.get("lowStockCount")).append(" sản phẩm\n\n");
 
-            sb.append("🏷️ **Phân bố theo phân khúc giá:**\n");
+            sb.append("🏷️ Phân bố theo phân khúc giá:\n");
             @SuppressWarnings("unchecked")
             Map<String, Long> priceRanges = (Map<String, Long>) stats.get("priceDistribution");
             if (priceRanges != null) {
-                priceRanges.forEach((range, count) -> sb.append(String.format("  - %s: **%d** sản phẩm\n", range, count)));
+                priceRanges.forEach((range, count) -> sb.append(String.format("  - %s: %d sản phẩm\n", range, count)));
             }
 
-            sb.append("\n📁 **Phân bố theo danh mục:**\n");
+            sb.append("\n📁 Phân bố theo danh mục:\n");
             @SuppressWarnings("unchecked")
             Map<String, Long> catCounts = (Map<String, Long>) stats.get("categoryCounts");
             if (catCounts != null) {
-                catCounts.forEach((cat, count) -> sb.append(String.format("  - %s: **%d** sản phẩm\n", cat, count)));
+                catCounts.forEach((cat, count) -> sb.append(String.format("  - %s: %d sản phẩm\n", cat, count)));
             }
             return sb.toString();
         }
@@ -169,23 +169,23 @@ public class ProductAssistantService {
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("🤖 **KẾT QUẢ TÌM KIẾM NGỮ NGHĨA TỪ VECTOR DATABASE (Cosine Similarity):**\n");
-        sb.append("*(Hệ thống đã liên kết vector ngữ nghĩa cho yêu cầu: \"").append(query).append("\")*\n\n");
+        sb.append("🤖 KẾT QUẢ TÌM KIẾM NGỮ NGHĨA TỪ VECTOR DATABASE (Cosine Similarity):\n");
+        sb.append("(Hệ thống đã liên kết vector ngữ nghĩa cho yêu cầu: \"").append(query).append("\")\n\n");
 
         for (int i = 0; i < results.size(); i++) {
             ProductTools.ProductSummary p = results.get(i);
-            sb.append(String.format("%d. **[Mã #%d] %s**\n", (i + 1), p.id(), p.name()));
-            sb.append(String.format("   • **Giá bán:** %,.0f VNĐ\n", p.price()));
-            sb.append(String.format("   • **Danh mục:** %s | **Màu:** %s | **Tồn kho:** %d chiếc\n",
+            sb.append(String.format("%d. [Mã #%d] %s\n", (i + 1), p.id(), p.name()));
+            sb.append(String.format("   • Giá bán: %,.0f VNĐ\n", p.price()));
+            sb.append(String.format("   • Danh mục: %s | Màu: %s | Tồn kho: %d chiếc\n",
                     p.categoryName(), p.color(), p.quantity()));
-            sb.append(String.format("   • **Độ tương đồng ngữ nghĩa (Cosine):** %.0f%%\n", p.similarityScore() * 100));
+            sb.append(String.format("   • Độ tương đồng ngữ nghĩa (Cosine): %.0f%%\n", p.similarityScore() * 100));
             if (p.description() != null && !p.description().isBlank()) {
-                sb.append(String.format("   • *Mô tả:* %s\n", p.description()));
+                sb.append(String.format("   • Mô tả: %s\n", p.description()));
             }
             sb.append("\n");
         }
 
-        sb.append("💡 **Đặt hàng ngay:** Anh/chị có thể nhắn: *'Tôi muốn đặt sản phẩm [Mã ID], Họ tên, Số điện thoại, Địa chỉ'* để em tạo đơn hàng ngay lập tức nhé!");
+        sb.append("💡 Đặt hàng ngay: Anh/chị có thể nhắn: 'Tôi muốn đặt sản phẩm [Mã ID], Họ tên, Số điện thoại, Địa chỉ' để em tạo đơn hàng ngay lập tức nhé!");
         return sb.toString();
     }
 
@@ -199,9 +199,9 @@ public class ProductAssistantService {
         String combined = nameLower + " " + queryLower;
 
         StringBuilder sb = new StringBuilder();
-        sb.append("🖼️ **KẾT QUẢ PHÂN TÍCH HÌNH ẢNH (AI Vision & Vector Database):**\n");
+        sb.append("🖼️ KẾT QUẢ PHÂN TÍCH HÌNH ẢNH (AI Vision & Vector Database):\n");
         if (filename != null && !filename.isBlank()) {
-            sb.append("• **Tệp ảnh:** `").append(filename).append("`");
+            sb.append("• Tệp ảnh: ").append(filename);
             if (imageBytes != null) {
                 sb.append(String.format(" (Kích thước: %.1f KB)", imageBytes.length / 1024.0));
             }
@@ -211,20 +211,20 @@ public class ProductAssistantService {
         // Trường hợp 1: Ảnh slide / tài liệu lý thuyết về Vector Database & AI (như ảnh bài giảng)
         if (combined.contains("vector") || combined.contains("database") || combined.contains("slide")
                 || combined.contains("ai") || combined.contains("học máy") || combined.contains("nlp") || combined.contains("deed0de0") || combined.contains("media_")) {
-            sb.append("🔍 **Nội dung nhận diện:** Đây là sơ đồ tổng quan về **Ứng dụng của Vector Database trong AI và Học máy**:\n\n");
-            sb.append("1. **🖼️ Tìm kiếm Hình ảnh/Video (Visual Search):**\n");
+            sb.append("🔍 Nội dung nhận diện: Đây là sơ đồ tổng quan về Ứng dụng của Vector Database trong AI và Học máy:\n\n");
+            sb.append("1. Tìm kiếm Hình ảnh/Video (Visual Search):\n");
             sb.append("   - Tìm kiếm và đối chiếu sản phẩm tương đồng trực tiếp bằng hình ảnh (như tính năng bạn vừa thực hiện trên eShop!).\n");
-            sb.append("2. **💡 Hệ thống Gợi ý (Recommendation System):**\n");
+            sb.append("2. Hệ thống Gợi ý (Recommendation System):\n");
             sb.append("   - Phân tích sở thích của người dùng để gợi ý sản phẩm, phim ảnh hoặc bài hát tương thích.\n");
-            sb.append("3. **💬 Xử lý Ngôn ngữ Tự nhiên (NLP):**\n");
+            sb.append("3. Xử lý Ngôn ngữ Tự nhiên (NLP):\n");
             sb.append("   - Xây dựng Chatbot thông minh, phân loại văn bản và tìm kiếm ngữ nghĩa theo chiều sâu.\n");
-            sb.append("4. **🧬 Phát hiện Bất thường (Anomaly Detection):**\n");
+            sb.append("4. Phát hiện Bất thường (Anomaly Detection):\n");
             sb.append("   - Phát hiện các mẫu giao dịch tài chính hoặc hành vi an ninh mạng bất thường dựa trên khoảng cách vector cách xa cụm chuẩn.\n");
-            sb.append("5. **🤖 Tăng cường cho Mô hình Ngôn ngữ Lớn (RAG - LLM):**\n");
+            sb.append("5. Tăng cường cho Mô hình Ngôn ngữ Lớn (RAG - LLM):\n");
             sb.append("   - Cung cấp bộ nhớ dài hạn và kiến thức thực tế cho AI (tránh hallucination / bịa đặt dữ liệu).\n");
-            sb.append("6. **🎵 Nhận dạng Âm thanh (Audio Fingerprint):**\n");
+            sb.append("6. Nhận dạng Âm thanh (Audio Fingerprint):\n");
             sb.append("   - Tra cứu bài hát từ giai điệu ngắn.\n\n");
-            sb.append("📌 *Hệ thống eShop hiện tại đã tích hợp xuất sắc mục **(1) Tìm kiếm bằng hình ảnh**, **(3) NLP Semantic Search** và **(5) Tăng cường RAG cho LLM**!*");
+            sb.append("📌 Hệ thống eShop hiện tại đã tích hợp xuất sắc mục (1) Tìm kiếm bằng hình ảnh, (3) NLP Semantic Search và (5) Tăng cường RAG cho LLM!");
             return sb.toString();
         }
 
@@ -255,26 +255,26 @@ public class ProductAssistantService {
             searchKeyword += " màu trắng";
         }
 
-        sb.append("🔎 **Phân tích đặc trưng hình ảnh:** Nhận diện được thiết bị thuộc nhóm **").append(searchKeyword.toUpperCase()).append("**.\n");
-        sb.append("🔗 **Truy xuất Vector Database:** Đang đối chiếu các vector đặc tính của hình ảnh với kho hàng eShop...\n\n");
+        sb.append("🔎 Phân tích đặc trưng hình ảnh: Nhận diện được thiết bị thuộc nhóm ").append(searchKeyword.toUpperCase()).append(".\n");
+        sb.append("🔗 Truy xuất Vector Database: Đang đối chiếu các vector đặc tính của hình ảnh với kho hàng eShop...\n\n");
 
         List<ProductTools.ProductSummary> matches = productTools.semanticSearchProducts(searchKeyword);
         if (matches.isEmpty()) {
             sb.append("Chưa tìm thấy sản phẩm tương đồng trong kho cho hình ảnh này. Quý khách vui lòng thử ảnh khác.");
         } else {
-            sb.append("✨ **Top sản phẩm trong kho có vector đặc tính tương đồng nhất:**\n\n");
+            sb.append("✨ Top sản phẩm trong kho có vector đặc tính tương đồng nhất:\n\n");
             for (int i = 0; i < Math.min(5, matches.size()); i++) {
                 ProductTools.ProductSummary p = matches.get(i);
-                sb.append(String.format("%d. **[Mã #%d] %s**\n", (i + 1), p.id(), p.name()));
-                sb.append(String.format("   • **Giá niêm yết:** %,.0f VNĐ | **Tồn kho:** %d chiếc\n", p.price(), p.quantity()));
-                sb.append(String.format("   • **Danh mục:** %s | **Màu sắc:** %s\n", p.categoryName(), p.color()));
-                sb.append(String.format("   • **Độ tương đồng ngữ nghĩa (Cosine):** %.0f%%\n", p.similarityScore() * 100));
+                sb.append(String.format("%d. [Mã #%d] %s\n", (i + 1), p.id(), p.name()));
+                sb.append(String.format("   • Giá niêm yết: %,.0f VNĐ | Tồn kho: %d chiếc\n", p.price(), p.quantity()));
+                sb.append(String.format("   • Danh mục: %s | Màu sắc: %s\n", p.categoryName(), p.color()));
+                sb.append(String.format("   • Độ tương đồng ngữ nghĩa (Cosine): %.0f%%\n", p.similarityScore() * 100));
                 if (p.description() != null && !p.description().isBlank()) {
-                    sb.append(String.format("   • *Mô tả:* %s\n", p.description()));
+                    sb.append(String.format("   • Mô tả: %s\n", p.description()));
                 }
                 sb.append("\n");
             }
-            sb.append("💡 **Đặt hàng ngay:** Anh/chị có thể nhắn: *'Tôi muốn đặt sản phẩm [Mã ID], Họ tên, Số điện thoại, Địa chỉ'* để hệ thống tạo đơn hàng ngay lập tức!");
+            sb.append("💡 Đặt hàng ngay: Anh/chị có thể nhắn: 'Tôi muốn đặt sản phẩm [Mã ID], Họ tên, Số điện thoại, Địa chỉ' để hệ thống tạo đơn hàng ngay lập tức!");
         }
 
         return sb.toString();

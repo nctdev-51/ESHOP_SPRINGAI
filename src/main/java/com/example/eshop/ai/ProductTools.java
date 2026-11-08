@@ -19,8 +19,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Spring AI Tools (Function Calling theo Slide 11, 15, 16):
- * Cho phép AI Model gọi trực tiếp các phương thức Java để tra cứu Vector Database và đặt hàng.
+ * Các công cụ (Tools) hỗ trợ AI tra cứu dữ liệu sản phẩm và đặt hàng.
  */
 @Component
 @RequiredArgsConstructor
@@ -39,14 +38,14 @@ public class ProductTools {
             String categoryName,
             String color,
             double similarityScore,
-            String description
-    ) {}
+            String description) {
+    }
 
-    @Tool(description = "Tìm kiếm sản phẩm theo ngữ nghĩa trong Vector Database sử dụng độ tương đồng Cosine (Cosine Similarity) kết hợp lọc theo tiêu chí (giá, màu sắc, mục đích)")
+    @Tool(description = "Tìm kiếm sản phẩm theo ngữ nghĩa trong Vector Database sử dụng độ tương đồng Cosine kết hợp lọc theo tiêu chí (giá, màu sắc, mục đích)")
     public List<ProductSummary> semanticSearchProducts(
-            @ToolParam(description = "Câu hỏi hoặc yêu cầu tìm kiếm ngữ nghĩa của khách hàng, ví dụ: 'máy tính dưới 10 triệu', 'laptop gaming', 'sản phẩm màu đỏ'") String query) {
+            @ToolParam(description = "Câu hỏi hoặc yêu cầu tìm kiếm của khách hàng, ví dụ: 'máy tính dưới 10 triệu', 'laptop gaming', 'sản phẩm màu đỏ'") String query) {
         log.info("Gọi Tool semanticSearchProducts với query: '{}'", query);
-        List<ProductVectorStoreService.ScoredProduct> scored = vectorStoreService.searchSemantic(query, 12);
+        List<ProductVectorStoreService.ScoredProduct> scored = vectorStoreService.searchSemantic(query, 5);
 
         return scored.stream().map(sp -> {
             var doc = sp.document();
@@ -58,8 +57,7 @@ public class ProductTools {
                     doc.categoryName(),
                     doc.color(),
                     Math.round(sp.similarityScore() * 100.0) / 100.0,
-                    doc.description()
-            );
+                    doc.description());
         }).collect(Collectors.toList());
     }
 
@@ -89,7 +87,8 @@ public class ProductTools {
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm có ID: " + productId));
 
         if (p.getQuantity() < quantity) {
-            return "Đặt hàng thất bại: Sản phẩm " + p.getName() + " chỉ còn lại " + p.getQuantity() + " chiếc trong kho.";
+            return "Đặt hàng thất bại: Sản phẩm " + p.getName() + " chỉ còn lại " + p.getQuantity()
+                    + " chiếc trong kho.";
         }
 
         Cart tempCart = new Cart();
@@ -99,11 +98,12 @@ public class ProductTools {
         form.setCustomerName(customerName);
         form.setPhone(phone);
         form.setAddress(address);
-        form.setNote("Đơn hàng tạo tự động qua Trợ Lý AI eShop (Vector Database)");
+        form.setNote("Đơn hàng đặt qua Trợ lý AI eShop");
         form.setPaymentMethod(PaymentMethod.COD);
 
         Order order = orderService.placeOrder(form, tempCart, username);
-        return String.format("Đặt hàng thành công! Đơn hàng #%d đã được tạo cho %s (%s). Tổng thanh toán: %,.0f VNĐ. Phương thức COD.",
+        return String.format(
+                "Đặt hàng thành công! Đơn hàng #%d đã được tạo cho %s (%s). Tổng thanh toán: %,.0f VNĐ. Phương thức COD.",
                 order.getId(), form.getCustomerName(), form.getPhone(), order.getTotalAmount());
     }
 }
