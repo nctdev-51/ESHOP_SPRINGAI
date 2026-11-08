@@ -67,6 +67,41 @@ public class ProductVectorStoreService {
             double similarityScore
     ) {}
 
+    public record VectorInspectionResult(
+            String rawQuery,
+            String cleanedText,
+            List<String> tokens,
+            Map<String, Double> termFrequencies,
+            Map<String, List<String>> expandedSynonyms,
+            String detectedColor,
+            BigDecimal maxPrice,
+            BigDecimal minPrice,
+            boolean requireInStock,
+            Map<String, Double> unnormalizedVector,
+            double l2Norm,
+            Map<String, Double> normalizedVector,
+            List<DetailedScoredProduct> topMatches
+    ) {}
+
+    public record DetailedScoredProduct(
+            Long productId,
+            String name,
+            String categoryName,
+            BigDecimal price,
+            int quantity,
+            String imageUrl,
+            String color,
+            String description,
+            double baseCosine,
+            double angleDegrees,
+            double colorBonus,
+            double categoryBonus,
+            double gamingBonus,
+            double finalScore,
+            Map<String, Double> sharedTokenContributions,
+            Map<String, Double> productVector
+    ) {}
+
     // Load dữ liệu sản phẩm từ database vào bộ nhớ khi khởi động
     @PostConstruct
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
@@ -459,5 +494,261 @@ public class ProductVectorStoreService {
             ingestProductsFromDatabase();
         }
         return Collections.unmodifiableList(vectorStore);
+    }
+
+    /**
+     * Khảo sát chi tiết từng bước hoạt động của Vector Database (phục vụ Demo & Giải trình)
+     */
+    public VectorInspectionResult inspectQueryPipeline(String userQuery) {
+        if (vectorStore.isEmpty()) {
+            ingestProductsFromDatabase();
+        }
+
+        String rawQuery = userQuery != null ? userQuery.trim() : "";
+        String cleaned = rawQuery.toLowerCase()
+                .replaceAll("[^a-zA-Z0-9àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệđìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵ\\s]", " ")
+                .trim();
+
+        String[] tokenArray = cleaned.isEmpty() ? new String[0] : cleaned.split("\\s+");
+        List<String> tokens = new ArrayList<>();
+        Map<String, Double> termFrequencies = new LinkedHashMap<>();
+        for (String t : tokenArray) {
+            if (t.length() >= 2) {
+                tokens.add(t);
+                termFrequencies.put(t, termFrequencies.getOrDefault(t, 0.0) + 1.0);
+            }
+        }
+
+        // Bổ sung từ đồng nghĩa theo ngữ nghĩa
+        Map<String, List<String>> expandedSynonyms = new LinkedHashMap<>();
+        Map<String, Double> unnormalizedVector = new LinkedHashMap<>(termFrequencies);
+        for (Map.Entry<String, List<String>> entry : SEMANTIC_SYNONYMS.entrySet()) {
+            if (cleaned.contains(entry.getKey())) {
+                expandedSynonyms.put(entry.getKey(), entry.getValue());
+                for (String syn : entry.getValue()) {
+                    unnormalizedVector.put(syn, unnormalizedVector.getOrDefault(syn, 0.0) + 0.6);
+                }
+            }
+        }
+
+        // Chuẩn hóa L2 norm
+        double sumSquares = 0.0;
+        for (double v : unnormalizedVector.values()) {
+            sumSquares += v * v;
+        }
+        double l2Norm = Math.sqrt(sumSquares);
+        Map<String, Double> normalizedVector = new LinkedHashMap<>();
+        if (l2Norm > 0) {
+            for (Map.Entry<String, Double> e : unnormalizedVector.entrySet()) {
+                normalizedVector.put(e.getKey(), Math.round((e.getValue() / l2Norm) * 10000.0) / 10000.0);
+            }
+        }
+
+        // Trích xuất tiêu chí
+        String lowerQuery = rawQuery.toLowerCase();
+        BigDecimal maxPrice = extractMaxPrice(lowerQuery);
+        BigDecimal minPrice = extractMinPrice(lowerQuery);
+        String detectedColor = extractQueryColor(lowerQuery);
+        boolean requireInStock = extractInStockRequirement(lowerQuery);
+
+        List<DetailedScoredProduct> topMatches = new ArrayList<>();
+        for (ProductDocument doc : vectorStore) {
+            if (requireInStock && doc.quantity() <= 0) continue;
+            if (maxPrice != null && doc.price().compareTo(maxPrice) > 0) continue;
+            if (minPrice != null && doc.price().compareTo(minPrice) < 0) continue;
+
+            double baseCosine = 0.0;
+            Map<String, Double> sharedTokenContributions = new LinkedHashMap<>();
+            for (Map.Entry<String, Double> entry : normalizedVector.entrySet()) {
+                Double docVal = doc.vector().get(entry.getKey());
+                if (docVal != null && docVal > 0) {
+                    double contrib = entry.getValue() * docVal;
+                    baseCosine += contrib;
+                    sharedTokenContributions.put(entry.getKey(), Math.round(contrib * 10000.0) / 10000.0);
+                }
+            }
+
+            baseCosine = Math.min(1.0, Math.max(0.0, baseCosine));
+            double angleDegrees = Math.toDegrees(Math.acos(Math.min(1.0, baseCosine)));
+
+            double colorBonus = 0.0;
+            if (detectedColor != null && !detectedColor.isEmpty()) {
+                if (doc.color().equalsIgnoreCase(detectedColor) || doc.fullSemanticText().toLowerCase().contains(detectedColor.toLowerCase())) {
+                    colorBonus = 0.35;
+                }
+            }
+
+            double categoryBonus = 0.0;
+            if (lowerQuery.contains("máy tính") || lowerQuery.contains("may tinh")) {
+                String cat = doc.categoryName().toLowerCase();
+                if (cat.contains("laptop") || cat.contains("máy tính bảng") || cat.contains("màn hình")) {
+                    categoryBonus = 0.15;
+                }
+            }
+
+            double gamingBonus = 0.0;
+            if (lowerQuery.contains("gaming") || lowerQuery.contains("chơi game") || lowerQuery.contains("choi game")) {
+                String nameLower = doc.name().toLowerCase();
+                String descLower = (doc.description() != null ? doc.description() : "").toLowerCase();
+                String textLower = doc.fullSemanticText().toLowerCase();
+                if (nameLower.contains("gaming") || descLower.contains("gaming") || textLower.contains("rtx") || textLower.contains("144hz") || textLower.contains("165hz")) {
+                    gamingBonus = 0.25;
+                }
+            }
+
+            double finalScore = Math.min(1.0, Math.max(0.0, baseCosine + colorBonus + categoryBonus + gamingBonus));
+
+            if (finalScore > 0.05 || !sharedTokenContributions.isEmpty()) {
+                topMatches.add(new DetailedScoredProduct(
+                        doc.productId(),
+                        doc.name(),
+                        doc.categoryName(),
+                        doc.price(),
+                        doc.quantity(),
+                        doc.imageUrl(),
+                        doc.color(),
+                        doc.description(),
+                        Math.round(baseCosine * 10000.0) / 10000.0,
+                        Math.round(angleDegrees * 100.0) / 100.0,
+                        colorBonus,
+                        categoryBonus,
+                        gamingBonus,
+                        Math.round(finalScore * 10000.0) / 10000.0,
+                        sharedTokenContributions,
+                        doc.vector()
+                ));
+            }
+        }
+
+        topMatches.sort((a, b) -> Double.compare(b.finalScore(), a.finalScore()));
+        List<DetailedScoredProduct> limitedMatches = topMatches.stream().limit(8).collect(Collectors.toList());
+
+        return new VectorInspectionResult(
+                rawQuery,
+                cleaned,
+                tokens,
+                termFrequencies,
+                expandedSynonyms,
+                detectedColor,
+                maxPrice,
+                minPrice,
+                requireInStock,
+                unnormalizedVector,
+                Math.round(l2Norm * 10000.0) / 10000.0,
+                normalizedVector,
+                limitedMatches
+        );
+    }
+
+    /**
+     * Dữ liệu chiếu không gian vector 2 chiều (2D Projection Map)
+     */
+    public Map<String, Object> get2DProjectionData(String userQuery) {
+        if (vectorStore.isEmpty()) {
+            ingestProductsFromDatabase();
+        }
+
+        List<Map<String, Object>> productPoints = new ArrayList<>();
+        for (ProductDocument doc : vectorStore) {
+            Map<String, Object> point = new LinkedHashMap<>();
+            point.put("id", doc.productId());
+            point.put("name", doc.name());
+            point.put("category", doc.categoryName());
+            point.put("price", doc.price());
+            point.put("quantity", doc.quantity());
+            point.put("color", doc.color());
+            point.put("imageUrl", doc.imageUrl());
+
+            double x = computeXCoordinate(doc.price());
+            double y = computeYCoordinate(doc.categoryName(), doc.name(), doc.description());
+            point.put("x", Math.round(x * 10.0) / 10.0);
+            point.put("y", Math.round(y * 10.0) / 10.0);
+            productPoints.add(point);
+        }
+
+        VectorInspectionResult inspection = inspectQueryPipeline(userQuery);
+        double qX = computeQueryX(userQuery, inspection.maxPrice(), inspection.minPrice());
+        double qY = computeQueryY(userQuery);
+
+        Map<String, Object> queryPoint = new LinkedHashMap<>();
+        queryPoint.put("text", userQuery);
+        queryPoint.put("x", Math.round(qX * 10.0) / 10.0);
+        queryPoint.put("y", Math.round(qY * 10.0) / 10.0);
+
+        List<Long> nearestIds = inspection.topMatches().stream()
+                .limit(3)
+                .map(DetailedScoredProduct::productId)
+                .collect(Collectors.toList());
+        queryPoint.put("nearestIds", nearestIds);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("products", productPoints);
+        result.put("queryPoint", queryPoint);
+        result.put("inspection", inspection);
+        return result;
+    }
+
+    public double computeXCoordinate(BigDecimal price) {
+        if (price == null) return 50.0;
+        double p = price.doubleValue();
+        if (p < 3_000_000) return 10.0 + (p / 3_000_000.0) * 15.0; // 10..25
+        if (p <= 10_000_000) return 25.0 + ((p - 3_000_000.0) / 7_000_000.0) * 25.0; // 25..50
+        if (p <= 20_000_000) return 50.0 + ((p - 10_000_000.0) / 10_000_000.0) * 25.0; // 50..75
+        return Math.min(95.0, 75.0 + ((p - 20_000_000.0) / 30_000_000.0) * 20.0); // 75..95
+    }
+
+    public double computeYCoordinate(String categoryName, String name, String desc) {
+        String cat = (categoryName != null ? categoryName : "").toLowerCase();
+        String full = ((name != null ? name : "") + " " + (desc != null ? desc : "")).toLowerCase();
+        if (cat.contains("chuột") || cat.contains("bàn phím") || cat.contains("tai nghe")) {
+            return 15.0;
+        }
+        if (cat.contains("màn hình")) {
+            return 35.0;
+        }
+        if (cat.contains("máy tính bảng") || cat.contains("tablet") || cat.contains("ipad")) {
+            return 52.0;
+        }
+        if (cat.contains("laptop")) {
+            if (full.contains("gaming") || full.contains("rtx") || full.contains("chơi game") || full.contains("workstation")) {
+                return 88.0;
+            }
+            if (full.contains("thinkpad") || full.contains("macbook") || full.contains("doanh nhân")) {
+                return 76.0;
+            }
+            return 66.0;
+        }
+        return 40.0;
+    }
+
+    public double computeQueryX(String query, BigDecimal maxPrice, BigDecimal minPrice) {
+        if (query == null) return 50.0;
+        if (maxPrice != null && minPrice != null) {
+            return computeXCoordinate(maxPrice.add(minPrice).divide(BigDecimal.valueOf(2)));
+        }
+        if (maxPrice != null) {
+            return Math.max(10.0, computeXCoordinate(maxPrice) - 10.0);
+        }
+        if (minPrice != null) {
+            return Math.min(90.0, computeXCoordinate(minPrice) + 10.0);
+        }
+        String q = query.toLowerCase();
+        if (q.contains("giá rẻ") || q.contains("sinh viên") || q.contains("bình dân")) return 20.0;
+        if (q.contains("tầm trung")) return 45.0;
+        if (q.contains("cao cấp") || q.contains("flagship") || q.contains("chuyên nghiệp")) return 85.0;
+        return 50.0;
+    }
+
+    public double computeQueryY(String query) {
+        if (query == null) return 50.0;
+        String q = query.toLowerCase();
+        if (q.contains("chuột") || q.contains("bàn phím") || q.contains("tai nghe") || q.contains("phụ kiện")) return 15.0;
+        if (q.contains("màn hình")) return 35.0;
+        if (q.contains("máy tính bảng") || q.contains("tablet") || q.contains("ipad")) return 52.0;
+        if (q.contains("gaming") || q.contains("game") || q.contains("rtx") || q.contains("đồ hoạ") || q.contains("chơi game")) return 88.0;
+        if (q.contains("macbook") || q.contains("thinkpad") || q.contains("doanh nhân") || q.contains("workstation")) return 76.0;
+        if (q.contains("laptop") || q.contains("máy tính xách tay") || q.contains("văn phòng") || q.contains("học tập")) return 66.0;
+        if (q.contains("máy tính") || q.contains("may tinh")) return 65.0;
+        return 50.0;
     }
 }

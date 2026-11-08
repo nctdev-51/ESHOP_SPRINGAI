@@ -133,7 +133,11 @@
 
     const recommendationRoot = document.getElementById('recommendationsRoot');
     if (recommendationRoot) {
-        fetch('/api/recommendations?limit=8&anonymousId=' + encodeURIComponent(anonymousId), {
+        const currentProductElem = document.querySelector('[data-product-view-id]');
+        const currentProductId = currentProductElem ? currentProductElem.getAttribute('data-product-view-id') : '';
+        const recUrl = '/api/recommendations?limit=8&anonymousId=' + encodeURIComponent(anonymousId)
+            + (currentProductId ? '&currentProductId=' + encodeURIComponent(currentProductId) : '');
+        fetch(recUrl, {
             headers: { 'Accept': 'application/json' }
         }).then(response => {
             if (!response.ok) throw new Error('Recommendations request failed: ' + response.status);

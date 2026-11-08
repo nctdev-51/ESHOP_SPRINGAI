@@ -53,7 +53,8 @@ public class ProductAssistantService {
                            - Nhận diện chi tiết loại thiết bị, nhãn hiệu, màu sắc, hoặc đọc nội dung thông điệp trong ảnh.
                            - Nếu là sản phẩm công nghệ: BẮT BUỘC gọi công cụ `semanticSearchProducts` để tìm kiếm trong Vector Database các sản phẩm giống hoặc tương đương nhất trong kho eShop!
                            - Nếu là slide/ảnh bài giảng: Phân tích, tóm tắt và giải thích rõ ràng từng ý chính trong ảnh.
-                        6. Luôn trả lời bằng tiếng Việt lịch sự, rõ ràng và thân thiện.
+                        6. Gợi ý cá nhân hóa: Khi khách hỏi 'gợi ý cho tôi', 'tôi nên mua gì', 'tư vấn sản phẩm phù hợp', hãy gọi công cụ `getPersonalizedRecommendations`.
+                        7. Luôn trả lời bằng tiếng Việt lịch sự, rõ ràng và thân thiện.
                         """)
                 .defaultTools(productTools)
                 .defaultAdvisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))

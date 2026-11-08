@@ -16,11 +16,12 @@ public class RecommendationController {
     @GetMapping
     public List<RecommendationService.Recommendation> recommend(
             @RequestParam(name = "anonymousId", required = false) String anonymousId,
+            @RequestParam(name = "currentProductId", required = false) Long currentProductId,
             @RequestParam(name = "limit", defaultValue = "8") int limit,
             Authentication authentication) {
         String username = authentication != null && authentication.isAuthenticated()
                 && !"anonymousUser".equals(authentication.getName())
                 ? authentication.getName() : null;
-        return recommendationService.recommend(username, anonymousId, limit);
+        return recommendationService.recommend(username, anonymousId, currentProductId, limit);
     }
 }

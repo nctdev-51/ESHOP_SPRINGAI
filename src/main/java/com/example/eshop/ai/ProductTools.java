@@ -29,6 +29,7 @@ public class ProductTools {
     private final ProductVectorStoreService vectorStoreService;
     private final ProductRepository productRepository;
     private final OrderService orderService;
+    private final com.example.eshop.service.RecommendationService recommendationService;
 
     public record ProductSummary(
             Long id,
@@ -72,6 +73,24 @@ public class ProductTools {
     public List<ProductSummary> searchProducts(
             @ToolParam(description = "Từ khóa tìm kiếm") String keyword) {
         return semanticSearchProducts(keyword);
+    }
+
+    @Tool(description = "Gợi ý các sản phẩm phù hợp nhất cho người dùng dựa trên sở thích và lịch sử xem hàng, giỏ hàng (Personalized User Preference Vector)")
+    public List<ProductSummary> getPersonalizedRecommendations(
+            @ToolParam(description = "Username của khách hàng đã đăng nhập (nếu có)") String username,
+            @ToolParam(description = "Mã định danh ẩn danh anonymousId (nếu có)") String anonymousId) {
+        log.info("Gọi Tool getPersonalizedRecommendations cho user: '{}', anon: '{}'", username, anonymousId);
+        var recs = recommendationService.recommend(username, anonymousId, 4);
+        return recs.stream().map(r -> new ProductSummary(
+                r.id(),
+                r.name(),
+                r.price(),
+                r.quantity(),
+                r.category(),
+                "Tiêu chuẩn",
+                Math.round(r.score() * 100.0) / 100.0,
+                "Gợi ý cá nhân hóa từ Vector sở thích"
+        )).collect(Collectors.toList());
     }
 
     @Tool(description = "Tạo đơn hàng nhanh cho khách hàng khi khách đã xác nhận thông tin và đồng ý đặt hàng")

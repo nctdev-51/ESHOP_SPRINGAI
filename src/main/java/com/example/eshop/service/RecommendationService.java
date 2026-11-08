@@ -38,12 +38,17 @@ public class RecommendationService {
 
     @Transactional(readOnly = true)
     public List<Recommendation> recommend(String username, String anonymousId, int limit) {
+        return recommend(username, anonymousId, null, limit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Recommendation> recommend(String username, String anonymousId, Long currentProductId, int limit) {
         Long userId = username == null ? null
                 : userRepository.findByUsername(username).map(user -> user.getId()).orElse(null);
 
         List<UserEvent> events = userTrackingService.recentEvents(userId, anonymousId);
         UserPreferenceProfile profile = preferenceVectorService.buildProfile(events);
-        Set<Long> excluded = collectExcludedProductIds(userId, username, events);
+        Set<Long> excluded = collectExcludedProductIds(userId, username, events, currentProductId);
 
         return vectorStoreService.getAllDocuments().stream()
                 .filter(document -> document.quantity() > 0)
@@ -64,12 +69,15 @@ public class RecommendationService {
                 .toList();
     }
 
-    private Set<Long> collectExcludedProductIds(Long userId, String username, List<UserEvent> events) {
+    private Set<Long> collectExcludedProductIds(Long userId, String username, List<UserEvent> events, Long currentProductId) {
         Set<Long> excluded = new HashSet<>();
+        if (currentProductId != null) {
+            excluded.add(currentProductId);
+        }
+
+        // Chỉ loại trừ các sản phẩm đã mua (purchase), không loại trừ product_view để tôn trọng sở thích người dùng
         for (UserEvent event : events) {
-            if (event.getProductId() != null && (
-                    "purchase".equals(event.getEventType())
-                    || "product_view".equals(event.getEventType()))) {
+            if (event.getProductId() != null && "purchase".equals(event.getEventType())) {
                 excluded.add(event.getProductId());
             }
         }
