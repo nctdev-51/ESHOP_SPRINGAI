@@ -49,7 +49,7 @@
                                 <td class="text-end">
                                     <form th:action="@{/cart/remove}" method="post" class="d-inline">
                                         <input type="hidden" name="productId" th:value="${item.productId}">
-                                        <button type="submit" class="btn btn-sm text-danger" title="Xóa">
+                                        <button type="submit" class="btn btn-sm text-danger" th:attr="data-product-id=${item.productId}" title="Xóa">
                                             <i class="fa-solid fa-trash-can"></i>
                                         </button>
                                     </form>

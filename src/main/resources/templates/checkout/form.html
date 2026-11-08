@@ -9,6 +9,8 @@
     <h3 class="fw-bold mb-4"><i class="fa-solid fa-truck-ramp-box me-2 text-primary"></i> Thông Tin Thanh Toán & Giao Hàng</h3>
 
     <form th:action="@{/checkout}" th:object="${form}" method="post">
+        <input type="hidden" name="anonymousId" data-tracking-anonymous-id>
+        <input type="hidden" name="sessionId" data-tracking-session-id>
         <div class="row g-4">
             <!-- Cột điền thông tin -->
             <div class="col-lg-7">
