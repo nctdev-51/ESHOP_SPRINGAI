@@ -55,7 +55,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
-                .requestMatchers("/api/orders/**").hasRole("CUSTOMER")
+            .requestMatchers(HttpMethod.POST, "/api/tracking/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/recommendations/**").permitAll()
+            .requestMatchers("/api/orders/**").hasRole("CUSTOMER")
                 .anyRequest().hasRole("SELLER")
             )
             .exceptionHandling(e -> e
