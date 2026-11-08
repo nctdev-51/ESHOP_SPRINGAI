@@ -61,7 +61,10 @@ public class VectorStoreConfig {
                             "productId", p.getId(),
                             "name", p.getName(),
                             "price", p.getPrice().doubleValue(),
-                            "category", p.getCategory() != null ? p.getCategory().getName() : ""
+                            "category", p.getCategory() != null ? p.getCategory().getName() : "",
+                            "stock", p.getQuantity(),
+                            "description", p.getDescription() != null ? p.getDescription() : "",
+                            "imageUrl", p.getImageUrl() != null ? p.getImageUrl() : ""
                         ))
                         .build();
                     documents.add(doc);

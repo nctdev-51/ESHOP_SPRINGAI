@@ -180,7 +180,63 @@ public class ProductVectorStoreService {
             sb.append("trên 20 triệu cao cấp flagship chuyên nghiệp ");
         }
 
+        sb.append("Giá: ").append(p.getPrice().toPlainString()).append(" VNĐ ");
+        sb.append("Tồn kho: ").append(p.getQuantity()).append(" chiếc ");
+        if (p.getQuantity() > 0) {
+            sb.append("còn hàng còn bán có sẵn ");
+        } else {
+            sb.append("hết hàng tạm hết không còn bán ");
+        }
+
         return sb.toString();
+    }
+
+    /**
+     * Cập nhật hoặc thêm một sản phẩm vào Vector Store ngay sau khi MariaDB được lưu.
+     * Phương thức này thuộc luồng ETL incremental của Tâm.
+     */
+    public synchronized void upsertProduct(Product product) {
+        if (product == null || product.getId() == null) {
+            return;
+        }
+
+        String categoryName = product.getCategory() != null
+                ? product.getCategory().getName() : "Khác";
+        String detectedColor = detectColor(
+                product.getName() + " " + (product.getDescription() != null
+                        ? product.getDescription() : ""));
+        String semanticText = buildSemanticText(product, categoryName, detectedColor);
+        Map<String, Double> vector = computeEmbeddingVector(semanticText);
+
+        ProductDocument document = new ProductDocument(
+                product.getId(),
+                product.getName(),
+                categoryName,
+                product.getPrice(),
+                product.getQuantity(),
+                product.getImageUrl(),
+                product.getDescription(),
+                detectedColor,
+                semanticText,
+                vector
+        );
+
+        vectorStore.removeIf(item -> item.productId().equals(product.getId()));
+        vectorStore.add(document);
+        log.info("Đã cập nhật ingestion cho sản phẩm ID {}: {}", product.getId(), product.getName());
+    }
+
+    /**
+     * Xóa sản phẩm khỏi bộ nhớ Vector Store sau khi bản ghi MariaDB được xóa.
+     */
+    public synchronized void removeProduct(Long productId) {
+        if (productId == null) {
+            return;
+        }
+        boolean removed = vectorStore.removeIf(item -> item.productId().equals(productId));
+        if (removed) {
+            log.info("Đã xóa sản phẩm ID {} khỏi Vector Store", productId);
+        }
     }
 
     /**

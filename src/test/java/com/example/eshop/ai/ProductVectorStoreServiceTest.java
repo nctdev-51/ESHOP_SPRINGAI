@@ -98,4 +98,33 @@ class ProductVectorStoreServiceTest {
         assertEquals(3, stats.get("totalProducts"));
         assertEquals(63, stats.get("totalStock"));
     }
+
+    @Test
+    void testIncrementalUpsertAndRemoveProduct() {
+        Category gamingLaptop = new Category();
+        gamingLaptop.setId(3L);
+        gamingLaptop.setName("Laptop");
+
+        Product gamingProduct = new Product();
+        gamingProduct.setId(99L);
+        gamingProduct.setName("ASUS ROG Gaming RTX Laptop");
+        gamingProduct.setDescription("Laptop gaming mạnh cho đồ họa và chơi game");
+        gamingProduct.setPrice(BigDecimal.valueOf(8_990_000));
+        gamingProduct.setQuantity(12);
+        gamingProduct.setCategory(gamingLaptop);
+
+        vectorStoreService.upsertProduct(gamingProduct);
+
+        assertTrue(vectorStoreService.getAllDocuments().stream()
+                .anyMatch(document -> document.productId().equals(99L)));
+
+        List<ProductVectorStoreService.ScoredProduct> results =
+                vectorStoreService.searchSemantic("laptop gaming dưới 10 triệu", 5);
+        assertTrue(results.stream().anyMatch(result ->
+                result.document().productId().equals(99L)));
+
+        vectorStoreService.removeProduct(99L);
+        assertFalse(vectorStoreService.getAllDocuments().stream()
+                .anyMatch(document -> document.productId().equals(99L)));
+    }
 }
