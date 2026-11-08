@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Thanh toán đơn hàng #' + ${order.id})}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+<div th:replace="~{fragments/layout :: alerts}"></div>
+
+<main class="container" style="max-width: 800px;">
+    <div class="card shadow-sm border-0 overflow-hidden">
+        <div class="card-header bg-primary text-white text-center py-4">
+            <h4 class="fw-bold mb-1"><i class="fa-solid fa-qrcode me-2"></i> Cổng Thanh Toán Chuyển Khoản</h4>
+            <p class="mb-0 opacity-75">Quét mã QR để hoàn tất thanh toán đơn hàng #<span th:text="${order.id}"></span></p>
+        </div>
+
+        <div class="card-body p-4 text-center">
+            <div class="alert alert-info d-flex align-items-center justify-content-center mb-4">
+                <i class="fa-solid fa-info-circle me-2 fs-5"></i>
+                <span>Vui lòng quét mã QR hoặc chuyển khoản chính xác số tiền và nội dung bên dưới:</span>
+            </div>
+
+            <!-- Mã QR giả lập VietQR -->
+            <div class="d-inline-block p-3 border rounded shadow-sm bg-white mb-4">
+                <img th:src="@{https://api.qrserver.com/v1/create-qr-code/(size='240x240',data='VIETQR|ESHOP|' + ${order.id} + '|' + ${order.totalAmount})}"
+                     class="img-fluid" alt="QR Payment Code" style="width: 220px; height: 220px;">
+                <div class="small text-muted mt-2 fw-semibold">Quét bằng ứng dụng Ngân hàng / Ví điện tử</div>
+            </div>
+
+            <!-- Bảng thông tin thanh toán -->
+            <div class="card bg-light border-0 text-start p-3 mb-4 mx-auto" style="max-width: 520px;">
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span class="text-muted">Ngân hàng:</span>
+                    <strong class="text-primary">MB Bank (Ngân hàng Quân Đội)</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span class="text-muted">Số tài khoản:</span>
+                    <strong class="fs-5 text-dark">0901234567</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span class="text-muted">Chủ tài khoản:</span>
+                    <strong class="text-dark">ESHOP VIETNAM</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span class="text-muted">Số tiền cần thanh toán:</span>
+                    <strong class="fs-4 text-danger" th:text="${#numbers.formatDecimal(order.totalAmount, 0, 'COMMA', 0, 'POINT') + ' đ'}"></strong>
+                </div>
+                <div class="d-flex justify-content-between py-2">
+                    <span class="text-muted">Nội dung chuyển khoản:</span>
+                    <span class="badge bg-secondary fs-6" th:text="${'ESHOP ' + order.id}"></span>
+                </div>
+            </div>
+
+            <!-- Nút bấm giả lập hoàn tất thanh toán -->
+            <div class="d-flex justify-content-center gap-3">
+                <form th:action="@{/orders/{id}/pay(id=${order.id})}" method="post">
+                    <button type="submit" class="btn btn-success btn-lg px-4 fw-bold">
+                        <i class="fa-solid fa-circle-check me-2"></i> Tôi Đã Hoàn Tất Chuyển Khoản
+                    </button>
+                </form>
+                <a th:href="@{/orders/{id}(id=${order.id})}" class="btn btn-outline-secondary btn-lg">
+                    Xem lại đơn hàng
+                </a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

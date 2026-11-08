@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title != null ? title + ' - eShop' : 'eShop - Siêu Thị Công Nghệ'}">eShop</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<!-- Navbar Fragment -->
+<nav th:fragment="navbar" class="navbar navbar-expand-lg sticky-top">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}">
+            <i class="fa-solid fa-bag-shopping text-primary"></i> eShop
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/products}"><i class="fa-solid fa-store me-1"></i> Sản phẩm</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/ai/chat}">
+                        <span class="badge ai-badge me-1"><i class="fa-solid fa-robot"></i> Trợ lý AI &amp; Tìm kiếm Ảnh</span>
+                    </a>
+                </li>
+                <!-- Menu cho CUSTOMER -->
+                <li class="nav-item" sec:authorize="hasRole('CUSTOMER')">
+                    <a class="nav-link" th:href="@{/orders}"><i class="fa-solid fa-receipt me-1"></i> Đơn hàng của tôi</a>
+                </li>
+                <!-- Menu cho SELLER -->
+                <li class="nav-item dropdown" sec:authorize="hasRole('SELLER')">
+                    <a class="nav-link dropdown-toggle text-danger fw-bold" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fa-solid fa-shield-halved me-1"></i> Quản trị
+                    </a>
+                    <ul class="dropdown-menu shadow border-0">
+                        <li><a class="dropdown-item" th:href="@{/admin/products}"><i class="fa-solid fa-box me-2"></i>Sản phẩm</a></li>
+                        <li><a class="dropdown-item" th:href="@{/admin/categories}"><i class="fa-solid fa-tags me-2"></i>Danh mục</a></li>
+                        <li><a class="dropdown-item" th:href="@{/admin/orders}"><i class="fa-solid fa-truck-fast me-2"></i>Đơn hàng</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" th:href="@{/admin/users}"><i class="fa-solid fa-users me-2"></i>Người dùng</a></li>
+                    </ul>
+                </li>
+            </ul>
+
+            <div class="d-flex align-items-center gap-3">
+                <!-- Giỏ hàng -->
+                <a th:href="@{/cart}" class="btn btn-outline-primary position-relative px-3">
+                    <i class="fa-solid fa-cart-shopping"></i> Giỏ hàng
+                    <span th:if="${cart != null && cart.totalQuantity > 0}"
+                          class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                          th:text="${cart.totalQuantity}">0</span>
+                </a>
+
+                <!-- Người dùng chưa đăng nhập -->
+                <div sec:authorize="!isAuthenticated() or hasRole('GUEST')" class="d-flex gap-2">
+                    <a th:href="@{/login}" class="btn btn-outline-secondary">Đăng nhập</a>
+                    <a th:href="@{/register}" class="btn btn-primary">Đăng ký</a>
+                </div>
+
+                <!-- Người dùng đã đăng nhập -->
+                <div sec:authorize="isAuthenticated() and !hasRole('GUEST')" class="d-flex align-items-center gap-2">
+                    <span class="text-secondary small">
+                        Xin chào, <strong class="text-dark" sec:authentication="name">User</strong>
+                    </span>
+                    <form th:action="@{/logout}" method="post" class="d-inline m-0">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Đăng xuất">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Alert messages fragment -->
+<div th:fragment="alerts" class="container mt-3">
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="fa-solid fa-circle-check me-2"></i><span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i><span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+</div>
+
+<!-- Footer Fragment -->
+<footer th:fragment="footer">
+    <div class="container text-center">
+        <p class="mb-1 fw-bold">&copy; 2026 eShop Shopping Cart - Spring Boot 3.2.12 + MariaDB + Spring Security + Spring AI</p>
+        <p class="mb-0 text-muted small">Hệ thống thương mại điện tử hiện đại và trợ lý ảo thông minh.</p>
+    </div>
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</footer>
+
+</body>
+</html>

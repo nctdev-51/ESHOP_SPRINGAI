@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Đơn hàng của tôi')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+<div th:replace="~{fragments/layout :: alerts}"></div>
+
+<main class="container">
+    <h3 class="fw-bold mb-4"><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i> Đơn Hàng Của Tôi</h3>
+
+    <div class="card shadow-sm border-0" th:if="${orders != null && !orders.empty}">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã đơn</th>
+                        <th>Ngày đặt</th>
+                        <th>Người nhận</th>
+                        <th>Phương thức</th>
+                        <th>Trạng thái</th>
+                        <th>Tổng tiền</th>
+                        <th class="text-end">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="o : ${orders}">
+                        <td><strong class="text-primary" th:text="${'#' + o.id}">#1</strong></td>
+                        <td th:text="${#temporals.format(o.orderDate, 'dd/MM/yyyy HH:mm')}"></td>
+                        <td>
+                            <div class="fw-semibold" th:text="${o.customerName}"></div>
+                            <small class="text-muted" th:text="${o.phone}"></small>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary" th:text="${o.paymentMethod}"></span>
+                        </td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${o.status.name() == 'NEW' ? 'bg-primary' : (o.status.name() == 'PAID' ? 'bg-info text-dark' : (o.status.name() == 'CONFIRMED' ? 'bg-warning text-dark' : (o.status.name() == 'SHIPPING' ? 'bg-secondary' : (o.status.name() == 'COMPLETED' ? 'bg-success' : 'bg-danger'))))}"
+                                  th:text="${o.status}">
+                            </span>
+                        </td>
+                        <td class="fw-bold text-danger" th:text="${#numbers.formatDecimal(o.totalAmount, 0, 'COMMA', 0, 'POINT') + ' đ'}"></td>
+                        <td class="text-end">
+                            <a th:href="@{/orders/{id}(id=${o.id})}" class="btn btn-sm btn-outline-primary">
+                                <i class="fa-solid fa-eye me-1"></i> Xem
+                            </a>
+                            <a th:if="${o.paymentMethod.name() == 'BANKING' && o.status.name() == 'NEW'}"
+                               th:href="@{/orders/{id}/payment(id=${o.id})}" class="btn btn-sm btn-warning">
+                                <i class="fa-solid fa-qrcode me-1"></i> Thanh toán
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Khi chưa có đơn hàng nào -->
+    <div class="text-center py-5" th:if="${orders == null || orders.empty}">
+        <i class="fa-solid fa-receipt text-muted fa-4x mb-3"></i>
+        <h4 class="fw-bold">Bạn chưa có đơn hàng nào!</h4>
+        <p class="text-muted">Các đơn hàng của bạn sau khi đặt sẽ được lưu và hiển thị tại đây.</p>
+        <a th:href="@{/products}" class="btn btn-primary mt-2">Mua sắm ngay</a>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Đăng nhập')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+<div th:replace="~{fragments/layout :: alerts}"></div>
+
+<main class="container" style="max-width: 480px;">
+    <div class="card shadow border-0 mt-3 p-4">
+        <div class="text-center mb-4">
+            <div class="display-6 text-primary mb-2"><i class="fa-solid fa-bag-shopping"></i></div>
+            <h4 class="fw-bold mb-1">Đăng Nhập eShop</h4>
+            <p class="text-muted small">Đăng nhập tài khoản để đặt hàng và quản trị</p>
+        </div>
+
+        <form th:action="@{/login}" method="post">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Tên đăng nhập</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fa-solid fa-user"></i></span>
+                    <input type="text" name="username" class="form-control" placeholder="Nhập username (VD: customer1 hoặc seller1)" required autofocus>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Mật khẩu</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
+                    <input type="password" name="password" class="form-control" placeholder="Nhập mật khẩu (VD: 123456)" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">
+                <i class="fa-solid fa-right-to-bracket me-2"></i> Đăng Nhập
+            </button>
+        </form>
+
+        <div class="text-center mt-4">
+            <span class="text-muted">Chưa có tài khoản?</span>
+            <a th:href="@{/register}" class="fw-semibold text-decoration-none">Đăng ký ngay</a>
+        </div>
+
+        <!-- Gợi ý tài khoản demo -->
+        <div class="mt-4 p-3 bg-light rounded border text-muted small">
+            <div class="fw-bold text-dark mb-1"><i class="fa-solid fa-circle-info me-1 text-primary"></i> Tài khoản mẫu dùng thử:</div>
+            <div>• Khách hàng: <code>customer1</code> / <code>123456</code></div>
+            <div>• Quản trị viên: <code>seller1</code> / <code>123456</code></div>
+            <div>• Tài khoản bị khóa: <code>locked</code> / <code>123456</code></div>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

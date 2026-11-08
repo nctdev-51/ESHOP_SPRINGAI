@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${product.id != null ? 'Sửa Sản phẩm' : 'Thêm Sản phẩm'})}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+<div th:replace="~{fragments/layout :: alerts}"></div>
+
+<main class="container" style="max-width: 720px;">
+    <div class="card shadow-sm border-0 p-4">
+        <h4 class="fw-bold mb-4">
+            <i class="fa-solid fa-box-open text-primary me-2"></i>
+            <span th:text="${product.id != null ? 'Chỉnh Sửa Sản Phẩm #' + product.id : 'Thêm Sản Phẩm Mới'}"></span>
+        </h4>
+
+        <form th:action="${product.id != null ? '/admin/products/' + product.id + '/edit' : '/admin/products'}"
+              th:object="${product}" method="post">
+            <input type="hidden" th:field="*{id}" th:if="${product.id != null}">
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Tên sản phẩm <span class="text-danger">*</span></label>
+                <input type="text" th:field="*{name}" class="form-control" th:classappend="${#fields.hasErrors('name') ? 'is-invalid' : ''}" placeholder="Nhập tên sản phẩm...">
+                <div class="invalid-feedback" th:errors="*{name}"></div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Danh mục <span class="text-danger">*</span></label>
+                <select th:field="*{category.id}" class="form-select" th:classappend="${#fields.hasErrors('category') ? 'is-invalid' : ''}">
+                    <option value="">-- Chọn danh mục --</option>
+                    <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}"></option>
+                </select>
+                <div class="invalid-feedback" th:errors="*{category}"></div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Giá bán (VNĐ) <span class="text-danger">*</span></label>
+                    <input type="number" th:field="*{price}" class="form-control" th:classappend="${#fields.hasErrors('price') ? 'is-invalid' : ''}" placeholder="0" min="0" step="1000">
+                    <div class="invalid-feedback" th:errors="*{price}"></div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Số lượng tồn kho <span class="text-danger">*</span></label>
+                    <input type="number" th:field="*{quantity}" class="form-control" th:classappend="${#fields.hasErrors('quantity') ? 'is-invalid' : ''}" placeholder="0" min="0">
+                    <div class="invalid-feedback" th:errors="*{quantity}"></div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Đường dẫn hình ảnh (URL)</label>
+                <input type="url" th:field="*{imageUrl}" class="form-control" placeholder="https://example.com/image.jpg">
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Mô tả chi tiết</label>
+                <textarea th:field="*{description}" class="form-control" rows="4" placeholder="Mô tả thông số kỹ thuật, bảo hành..."></textarea>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a th:href="@{/admin/products}" class="btn btn-outline-secondary">Hủy bỏ</a>
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="fa-solid fa-save me-1"></i> Lưu sản phẩm
+                </button>
+            </div>
+        </form>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

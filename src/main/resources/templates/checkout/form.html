@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Đặt hàng')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+<div th:replace="~{fragments/layout :: alerts}"></div>
+
+<main class="container">
+    <h3 class="fw-bold mb-4"><i class="fa-solid fa-truck-ramp-box me-2 text-primary"></i> Thông Tin Thanh Toán & Giao Hàng</h3>
+
+    <form th:action="@{/checkout}" th:object="${form}" method="post">
+        <div class="row g-4">
+            <!-- Cột điền thông tin -->
+            <div class="col-lg-7">
+                <div class="card shadow-sm border-0 p-4">
+                    <h5 class="fw-bold mb-3 border-bottom pb-2">Người Nhận Hàng</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Họ và tên người nhận <span class="text-danger">*</span></label>
+                        <input type="text" th:field="*{customerName}" class="form-control" th:classappend="${#fields.hasErrors('customerName') ? 'is-invalid' : ''}" placeholder="Nguyễn Văn A">
+                        <div class="invalid-feedback" th:errors="*{customerName}"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Số điện thoại liên hệ <span class="text-danger">*</span></label>
+                        <input type="tel" th:field="*{phone}" class="form-control" th:classappend="${#fields.hasErrors('phone') ? 'is-invalid' : ''}" placeholder="0901234567">
+                        <div class="invalid-feedback" th:errors="*{phone}"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Địa chỉ giao hàng <span class="text-danger">*</span></label>
+                        <textarea th:field="*{address}" class="form-control" rows="3" th:classappend="${#fields.hasErrors('address') ? 'is-invalid' : ''}" placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố"></textarea>
+                        <div class="invalid-feedback" th:errors="*{address}"></div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Ghi chú đơn hàng</label>
+                        <textarea th:field="*{note}" class="form-control" rows="2" placeholder="Giao giờ hành chính, gọi trước khi giao..."></textarea>
+                    </div>
+
+                    <h5 class="fw-bold mb-3 border-bottom pb-2">Phương Thức Thanh Toán</h5>
+                    
+                    <div class="form-check p-3 border rounded mb-2" style="background-color: #f8fafc;">
+                        <input class="form-check-input" type="radio" th:field="*{paymentMethod}" id="payCOD" value="COD" checked>
+                        <label class="form-check-label fw-semibold ms-2" for="payCOD">
+                            <i class="fa-solid fa-money-bill-wave text-success me-2"></i> Thanh toán khi nhận hàng (COD)
+                        </label>
+                        <div class="text-muted small ms-4">Thanh toán bằng tiền mặt cho shipper khi nhận được kiện hàng.</div>
+                    </div>
+
+                    <div class="form-check p-3 border rounded" style="background-color: #f8fafc;">
+                        <input class="form-check-input" type="radio" th:field="*{paymentMethod}" id="payBanking" value="BANKING">
+                        <label class="form-check-label fw-semibold ms-2" for="payBanking">
+                            <i class="fa-solid fa-qrcode text-primary me-2"></i> Chuyển khoản ngân hàng (VietQR giả lập)
+                        </label>
+                        <div class="text-muted small ms-4">Quét mã QR để thanh toán nhanh qua ứng dụng ngân hàng.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cột tóm tắt đơn hàng -->
+            <div class="col-lg-5">
+                <div class="card shadow-sm border-0 p-4">
+                    <h5 class="fw-bold mb-3 border-bottom pb-2">Đơn Hàng Của Bạn</h5>
+                    
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0" th:each="item : ${cart.items}">
+                            <div class="me-2">
+                                <h6 class="my-0 text-truncate" style="max-width: 200px;" th:text="${item.name}">Product Name</h6>
+                                <small class="text-muted" th:text="${'SL: ' + item.quantity + ' x ' + #numbers.formatDecimal(item.price, 0, 'COMMA', 0, 'POINT') + ' đ'}"></small>
+                            </div>
+                            <span class="fw-bold" th:text="${#numbers.formatDecimal(item.subtotal, 0, 'COMMA', 0, 'POINT') + ' đ'}"></span>
+                        </li>
+                    </ul>
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Tổng cộng hàng hóa:</span>
+                        <strong th:text="${#numbers.formatDecimal(cart.totalAmount, 0, 'COMMA', 0, 'POINT') + ' đ'}"></strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted">Phí giao hàng:</span>
+                        <span class="text-success fw-bold">0 đ (Miễn phí)</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-4">
+                        <span class="fs-5 fw-bold">Tổng thanh toán:</span>
+                        <span class="fs-4 fw-bold text-danger" th:text="${#numbers.formatDecimal(cart.totalAmount, 0, 'COMMA', 0, 'POINT') + ' đ'}"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold py-3">
+                        <i class="fa-solid fa-check me-2"></i> Xác Nhận Đặt Hàng
+                    </button>
+                    <a th:href="@{/cart}" class="btn btn-link text-center d-block mt-2 text-decoration-none">
+                        Quay lại giỏ hàng
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

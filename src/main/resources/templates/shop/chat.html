@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Trợ Lý Thông Minh eShop')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+<div th:replace="~{fragments/layout :: alerts}"></div>
+
+<main class="container py-3" style="max-width: 850px;">
+    <div class="card shadow border-0">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
+            <div>
+                <h5 class="mb-0">🤖 Trợ Lý Mua Sắm AI (Spring AI Vector Search)</h5>
+                <small class="text-light opacity-75">Tìm kiếm theo ngữ nghĩa &amp; Tự động lưu hội thoại vào DB MariaDB</small>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success">Đang hoạt động</span>
+                <form th:action="@{/chat/clear}" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa lịch sử cuộc trò chuyện này?');">
+                    <button type="submit" class="btn btn-sm btn-outline-light py-0 px-2" title="Xóa lịch sử">
+                        <i class="fa-solid fa-trash-can"></i> Mới
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Khung hiển thị nội dung tin nhắn đọc từ MariaDB -->
+        <div class="card-body bg-light" id="chatArea" style="height: 500px; overflow-y: auto;">
+            <div th:if="${#lists.isEmpty(messages)}" class="text-center text-muted my-5">
+                <h4>👋 Xin chào bạn!</h4>
+                <p>Tôi là trợ lý ảo của eShop tích hợp Vector Database. Hãy thử hỏi tôi các câu hỏi như:</p>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="quickAsk('Có máy tính nào dưới 10 triệu không?')">
+                        Có máy tính nào dưới 10 triệu không?
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="quickAsk('Tìm sản phẩm máy tính màu đỏ')">
+                        Tìm sản phẩm máy tính màu đỏ
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="quickAsk('Gợi ý cho tôi tai nghe chụp tai chống ồn')">
+                        Gợi ý tai nghe chống ồn
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="quickAsk('Thống kê sản phẩm theo phân khúc giá')">
+                        Thống kê phân khúc giá
+                    </button>
+                </div>
+            </div>
+
+            <div th:each="msg : ${messages}" class="mb-3">
+                <!-- Tin nhắn từ Người Dùng -->
+                <div th:if="${msg.getMessageType() == 'USER' or msg.getRole() == 'USER'}" class="d-flex justify-content-end">
+                    <div class="bg-primary text-white p-3 rounded-3 shadow-sm text-start" style="max-width: 80%;">
+                        <div class="small fw-bold opacity-75 mb-1" th:text="${msg.getUserName()}">User</div>
+                        <div style="white-space: pre-wrap;" th:text="${msg.getContent()}"></div>
+                        <div class="text-end mt-1" style="font-size: 0.75rem; opacity: 0.7;" 
+                             th:text="${msg.getCreatedAt() != null ? #temporals.format(msg.getCreatedAt(), 'HH:mm dd/MM') : ''}"></div>
+                    </div>
+                </div>
+
+                <!-- Phản hồi từ Trợ Lý AI -->
+                <div th:if="${msg.getMessageType() == 'ASSISTANT' or msg.getRole() == 'ASSISTANT'}" class="d-flex justify-content-start">
+                    <div class="bg-white border p-3 rounded-3 shadow-sm text-start" style="max-width: 85%;">
+                        <div class="small fw-bold text-success mb-1">🤖 eShop Assistant (Vector DB)</div>
+                        <div style="white-space: pre-wrap;" th:text="${msg.getContent()}"></div>
+                        <div class="text-muted mt-1" style="font-size: 0.75rem;" 
+                             th:text="${msg.getCreatedAt() != null ? #temporals.format(msg.getCreatedAt(), 'HH:mm dd/MM') : ''}"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form nhập câu hỏi -->
+        <div class="card-footer bg-white p-3">
+            <form th:action="@{/chat/send}" method="post" class="d-flex gap-2" id="chatForm">
+                <input type="text" name="query" id="queryInput" class="form-control form-control-lg" 
+                       placeholder="Nhập nhu cầu tìm kiếm của bạn (ví dụ: máy tính dưới 10 triệu)..." required autofocus>
+                <button type="submit" class="btn btn-primary btn-lg px-4" id="submitBtn">
+                    <i class="fa-solid fa-paper-plane me-1"></i> Gửi
+                </button>
+            </form>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+
+<script>
+    // Tự động cuộn xuống tin nhắn mới nhất
+    window.addEventListener('load', function() {
+        var chatArea = document.getElementById('chatArea');
+        if (chatArea) {
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+    });
+
+    function quickAsk(text) {
+        document.getElementById('queryInput').value = text;
+        document.getElementById('chatForm').submit();
+    }
+</script>
+</body>
+</html>

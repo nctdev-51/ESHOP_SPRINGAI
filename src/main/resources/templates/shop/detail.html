@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${product.name})}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+<div th:replace="~{fragments/layout :: alerts}"></div>
+
+<main class="container">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/}">Trang chủ</a></li>
+            <li class="breadcrumb-item"><a th:href="@{/products(categoryId=${product.category.id})}" th:text="${product.category.name}">Danh mục</a></li>
+            <li class="breadcrumb-item active" th:text="${product.name}">Sản phẩm</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow-sm border-0 p-4">
+        <div class="row g-4 align-items-center">
+            <div class="col-md-5 text-center">
+                <img th:src="${product.imageUrl != null && !product.imageUrl.empty ? product.imageUrl : 'https://placehold.co/600x500/e2e8f0/475569?text=' + product.name}"
+                     class="img-fluid rounded border shadow-sm" style="max-height: 400px; object-fit: cover;"
+                     th:alt="${product.name}"
+                     onerror="this.src='https://placehold.co/600x500/e2e8f0/475569?text=eShop'">
+            </div>
+            <div class="col-md-7">
+                <div class="mb-2">
+                    <span class="badge bg-primary-subtle text-primary fs-6" th:text="${product.category.name}">Category</span>
+                </div>
+                <h2 class="fw-bold mb-3" th:text="${product.name}">Product Name</h2>
+                
+                <div class="mb-3">
+                    <span class="product-price fs-2" th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT') + ' đ'}"></span>
+                </div>
+
+                <div class="mb-4">
+                    <span th:if="${product.quantity > 0}" class="badge bg-success fs-6">
+                        <i class="fa-solid fa-check me-1"></i> Còn hàng: <span th:text="${product.quantity}"></span> chiếc
+                    </span>
+                    <span th:unless="${product.quantity > 0}" class="badge bg-danger fs-6">
+                        <i class="fa-solid fa-xmark me-1"></i> Hết hàng
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <h6 class="fw-bold">Mô tả sản phẩm:</h6>
+                    <p class="text-secondary" th:text="${product.description != null ? product.description : 'Sản phẩm công nghệ hiện đại, chất lượng vượt trội từ thương hiệu uy tín.'}"></p>
+                </div>
+
+                <form th:action="@{/cart/add}" method="post" class="d-flex align-items-center gap-3">
+                    <input type="hidden" name="productId" th:value="${product.id}">
+                    <div class="input-group" style="width: 140px;">
+                        <span class="input-group-text">SL</span>
+                        <input type="number" name="quantity" class="form-control" value="1" min="1" th:max="${product.quantity}" th:disabled="${product.quantity <= 0}">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg px-4" th:disabled="${product.quantity <= 0}">
+                        <i class="fa-solid fa-cart-plus me-2"></i> Thêm vào giỏ hàng
+                    </button>
+                    <a th:href="@{/products}" class="btn btn-outline-secondary btn-lg">
+                        <i class="fa-solid fa-arrow-left me-1"></i> Quay lại
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

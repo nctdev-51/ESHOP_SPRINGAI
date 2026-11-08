@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Trợ lý AI - Vector Database & Phân tích ảnh')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+<div th:replace="~{fragments/layout :: alerts}"></div>
+
+<main class="container my-4" style="max-width: 950px;">
+    <!-- Thẻ Tiêu Đề & Thông Tin Vector Store -->
+    <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body py-3 px-4 bg-light rounded-top border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+                <h5 class="mb-1 fw-bold text-primary d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-brain"></i> Trợ Lý AI eShop (Spring AI, Vision &amp; Vector Database)
+                </h5>
+                <div class="small text-muted">
+                    <span><i class="fa-solid fa-vector-square text-success me-1"></i> Cosine Similarity RAG</span> &bull; 
+                    <span><i class="fa-solid fa-camera text-warning me-1"></i> Nhận diện &amp; Phân tích ảnh (Vision)</span> &bull; 
+                    <span><i class="fa-solid fa-database text-info me-1"></i> Lưu lịch sử vào MariaDB</span> &bull; 
+                    <span th:text="'Người dùng: ' + ${username}">Khách</span>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
+                    <i class="fa-solid fa-cube me-1"></i>
+                    <span th:text="${vectorCount} + ' SP trong Vector Store'">50 SP</span>
+                </span>
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearChatHistory()" title="Xóa lịch sử và tạo phiên trò chuyện mới">
+                    <i class="fa-solid fa-trash-can me-1"></i> Cuộc trò chuyện mới
+                </button>
+            </div>
+        </div>
+
+        <!-- Cửa Sổ Tin Nhắn -->
+        <div class="card-body p-3 p-md-4" id="chatWindow" style="height: 520px; overflow-y: auto; background-color: #f8fafc;">
+            <!-- Tin nhắn khởi động -->
+            <div class="d-flex justify-content-start mb-3">
+                <div class="bg-white border rounded-3 p-3 shadow-sm text-start" style="max-width: 90%;">
+                    <div class="fw-bold text-primary mb-1 d-flex align-items-center gap-1">
+                        <i class="fa-solid fa-robot"></i> Trợ lý eShop
+                    </div>
+                    <div class="text-secondary small mb-2">
+                        Xin chào <strong><span th:text="${username}">Bạn</span></strong>! Tôi là trợ lý AI được tích hợp <strong>Vector Database</strong>, thuật toán <strong>Cosine Similarity</strong> và <strong>Thị giác máy tính (Multimodal Vision)</strong>.
+                    </div>
+                    <ul class="small text-muted ps-3 mb-2">
+                        <li><strong>🖼️ Tìm kiếm bằng hình ảnh (Visual Search):</strong> Bạn có thể chụp ảnh hoặc đính kèm ảnh sản phẩm (laptop, điện thoại, bàn phím, tai nghe...) hoặc dán ảnh chụp màn hình (Ctrl + V) để AI phân tích và tìm kiếm sản phẩm tương đồng trong kho hàng!</li>
+                        <li><strong>🔍 Tìm kiếm ngữ nghĩa (NLP Semantic Search):</strong> Tìm theo ý nghĩa ("máy tính dưới 10 triệu", "laptop gaming mỏng nhẹ").</li>
+                        <li><strong>📊 Thống kê sản phẩm theo tiêu chí:</strong> Báo cáo tồn kho, phân khúc giá, danh mục.</li>
+                        <li><strong>💾 Bộ nhớ hội thoại &amp; CSDL:</strong> Toàn bộ lịch sử hỏi đáp và hình ảnh được lưu trữ trực tiếp vào MariaDB.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Render lịch sử chat đã lưu trong Database nếu có -->
+            <th:block th:if="${history != null and !history.isEmpty()}">
+                <th:block th:each="msg : ${history}">
+                    <!-- Tin nhắn của User -->
+                    <div th:if="${msg.role == 'USER'}" class="d-flex justify-content-end mb-3">
+                        <div class="bg-primary text-white rounded-3 p-3 shadow-sm text-start" style="max-width: 85%;">
+                            <div class="fw-bold mb-1 opacity-75 small">
+                                <i class="fa-solid fa-user me-1"></i> <span th:text="${msg.username != null ? msg.username : 'Bạn'}">Bạn</span>
+                            </div>
+                            <!-- Nếu tin nhắn có chứa ảnh -->
+                            <div th:if="${#strings.contains(msg.content, '[IMAGE:')}" class="mb-2">
+                                <img th:src="${#strings.substringBetween(msg.content, '[IMAGE:', ']')}"
+                                     class="img-fluid rounded border shadow-sm" style="max-height: 200px; max-width: 100%; object-fit: contain; background: #fff;" alt="Ảnh tải lên">
+                            </div>
+                            <div style="white-space: pre-wrap;" th:text="${#strings.contains(msg.content, '[IMAGE:') ? #strings.substringAfter(msg.content, ']') : msg.content}">Nội dung</div>
+                        </div>
+                    </div>
+                    <!-- Tin nhắn của Assistant -->
+                    <div th:if="${msg.role == 'ASSISTANT'}" class="d-flex justify-content-start mb-3">
+                        <div class="bg-white border rounded-3 p-3 shadow-sm text-start" style="max-width: 90%; white-space: pre-wrap;">
+                            <div class="fw-bold text-primary mb-1 small">
+                                <i class="fa-solid fa-robot me-1"></i> Trợ lý eShop (Vector DB &amp; Vision)
+                            </div>
+                            <div th:text="${msg.content}">Phản hồi</div>
+                        </div>
+                    </div>
+                </th:block>
+            </th:block>
+        </div>
+
+        <!-- Thanh Gợi Ý Câu Hỏi Mẫu Nhanh -->
+        <div class="px-3 pt-2 pb-1 bg-light border-top">
+            <div class="small text-muted mb-1"><i class="fa-solid fa-lightbulb text-warning me-1"></i> Câu hỏi mẫu theo tiêu chí:</div>
+            <div class="d-flex flex-wrap gap-1 mb-2">
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2" onclick="sendPrompt('Tìm sản phẩm máy tính dưới 10 triệu')">
+                    💻 Máy tính dưới 10 triệu
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2" onclick="sendPrompt('Tìm sản phẩm máy tính màu đỏ')">
+                    🔴 Máy tính màu đỏ
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2" onclick="sendPrompt('Tìm laptop gaming hoặc workstation')">
+                    🎮 Laptop gaming &amp; workstation
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success rounded-pill py-0 px-2" onclick="sendPrompt('Thống kê sản phẩm theo các tiêu chí phân khúc giá và danh mục')">
+                    📊 Thống kê sản phẩm theo tiêu chí
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill py-0 px-2" onclick="triggerImageUpload()">
+                    📷 Tải ảnh phân tích &amp; tìm kiếm sản phẩm
+                </button>
+            </div>
+        </div>
+
+        <!-- Khung Xem Trước Hình Ảnh Đã Chọn (Preview Bar) -->
+        <div id="imagePreviewContainer" class="p-2 bg-light border-top d-none align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-3">
+                <img id="imagePreview" src="" class="rounded border shadow-sm" style="height: 55px; width: 55px; object-fit: cover;" alt="Xem trước ảnh">
+                <div>
+                    <div id="imageFileName" class="small fw-bold text-truncate text-dark" style="max-width: 320px;">ten-file.jpg</div>
+                    <small class="text-success"><i class="fa-solid fa-sparkles me-1"></i> AI sẽ phân tích hình ảnh này và đối chiếu với Vector Database của eShop</small>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-danger rounded-circle" onclick="clearSelectedImage()" title="Hủy ảnh này">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Thanh Nhập Tin Nhắn & Đính Kèm Ảnh -->
+        <div class="card-footer bg-white border-top p-3">
+            <!-- Input File Ẩn -->
+            <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;" onchange="handleImageSelected(event)">
+
+            <form onsubmit="sendMessage(event)">
+                <div class="input-group">
+                    <!-- Nút đính kèm ảnh -->
+                    <button class="btn btn-outline-secondary px-3" type="button" id="btnUploadImage" onclick="triggerImageUpload()" title="Chọn ảnh hoặc chụp ảnh từ máy">
+                        <i class="fa-solid fa-camera text-primary"></i>
+                        <span class="d-none d-md-inline ms-1 small fw-semibold">Đính kèm ảnh</span>
+                    </button>
+
+                    <input type="text" id="userInput" class="form-control form-control-lg fs-6" 
+                           placeholder="Nhập yêu cầu hoặc dán ảnh (Ctrl+V), tải ảnh lên để AI phân tích..." autocomplete="off">
+
+                    <button class="btn btn-primary px-4 fw-semibold" type="submit" id="sendBtn">
+                        <i class="fa-solid fa-paper-plane me-1"></i> Gửi
+                    </button>
+                </div>
+            </form>
+            <div class="d-flex justify-content-between align-items-center mt-2 px-1">
+                <small class="text-muted"><i class="fa-solid fa-info-circle me-1"></i> Mẹo: Bạn có thể <strong>kéo thả ảnh</strong> vào khung chat hoặc bấm <strong>Ctrl + V</strong> để dán ảnh chụp màn hình.</small>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+
+<script>
+    let selectedImageFile = null;
+
+    // Tự động cuộn xuống đáy khi load trang
+    window.addEventListener('DOMContentLoaded', () => {
+        const chatWindow = document.getElementById('chatWindow');
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    });
+
+    // Kích hoạt hộp thoại chọn file ảnh
+    function triggerImageUpload() {
+        document.getElementById('imageInput').click();
+    }
+
+    // Xử lý khi người dùng chọn file ảnh
+    function handleImageSelected(event) {
+        const file = event.target.files[0];
+        if (file) {
+            setImageForUpload(file);
+        }
+    }
+
+    function setImageForUpload(file) {
+        if (!file.type.startsWith('image/')) {
+            alert('Vui lòng chọn một tệp hình ảnh hợp lệ (PNG, JPG, WEBP, GIF).');
+            return;
+        }
+        selectedImageFile = file;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('imagePreview').src = e.target.result;
+            document.getElementById('imageFileName').innerText = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+            document.getElementById('imagePreviewContainer').classList.remove('d-none');
+            document.getElementById('imagePreviewContainer').classList.add('d-flex');
+            document.getElementById('userInput').focus();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Xóa ảnh đã chọn
+    function clearSelectedImage() {
+        selectedImageFile = null;
+        document.getElementById('imageInput').value = '';
+        document.getElementById('imagePreview').src = '';
+        document.getElementById('imagePreviewContainer').classList.remove('d-flex');
+        document.getElementById('imagePreviewContainer').classList.add('d-none');
+    }
+
+    // Hỗ trợ dán ảnh trực tiếp từ Clipboard (Ctrl + V)
+    window.addEventListener('paste', (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let item of items) {
+            if (item.type.indexOf('image') === 0) {
+                const blob = item.getAsFile();
+                setImageForUpload(blob);
+                break;
+            }
+        }
+    });
+
+    // Hỗ trợ kéo thả ảnh (Drag and Drop)
+    const chatContainer = document.querySelector('main');
+    chatContainer.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        chatContainer.classList.add('border-primary');
+    });
+    chatContainer.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        chatContainer.classList.remove('border-primary');
+    });
+    chatContainer.addEventListener('drop', (e) => {
+        e.preventDefault();
+        chatContainer.classList.remove('border-primary');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            setImageForUpload(e.dataTransfer.files[0]);
+        }
+    });
+
+    function sendPrompt(text) {
+        document.getElementById('userInput').value = text;
+        sendMessage();
+    }
+
+    async function sendMessage(e) {
+        if (e) e.preventDefault();
+        const input = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const text = input.value.trim();
+
+        if (!text && !selectedImageFile) return;
+
+        const chatWindow = document.getElementById('chatWindow');
+        const currentFile = selectedImageFile;
+        const currentPreviewSrc = currentFile ? document.getElementById('imagePreview').src : null;
+
+        // Render tin nhắn của User ngay lập tức lên UI
+        let userHtml = `
+            <div class="d-flex justify-content-end mb-3">
+                <div class="bg-primary text-white rounded-3 p-3 shadow-sm text-start" style="max-width: 85%;">
+                    <div class="fw-bold mb-1 opacity-75 small"><i class="fa-solid fa-user me-1"></i> Bạn</div>`;
+        
+        if (currentPreviewSrc) {
+            userHtml += `
+                    <div class="mb-2">
+                        <img src="${currentPreviewSrc}" class="img-fluid rounded border shadow-sm" style="max-height: 200px; max-width: 100%; object-fit: contain; background: #fff;" alt="Ảnh bạn tải lên">
+                    </div>`;
+        }
+        
+        userHtml += `
+                    <div style="white-space: pre-wrap;">${escapeHtml(text || (currentFile ? '📷 [Phân tích hình ảnh này]' : ''))}</div>
+                </div>
+            </div>`;
+
+        chatWindow.innerHTML += userHtml;
+        input.value = '';
+        input.disabled = true;
+        sendBtn.disabled = true;
+        clearSelectedImage();
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+
+        // Hiển thị trạng thái đang xử lý
+        const loadingId = 'loading-' + Date.now();
+        const statusText = currentFile 
+            ? 'Đang nhận diện hình ảnh (Vision Multimodal) và tra cứu Vector Database...' 
+            : 'Đang tính toán Cosine Similarity trong Vector Database và truy xuất CSDL...';
+
+        chatWindow.innerHTML += `
+            <div id="${loadingId}" class="d-flex justify-content-start mb-3">
+                <div class="bg-white border rounded-3 p-3 shadow-sm text-start text-muted small" style="max-width: 90%;">
+                    <i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i> ${statusText}
+                </div>
+            </div>`;
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+
+        try {
+            const formData = new FormData();
+            if (text) formData.append('message', text);
+            if (currentFile) formData.append('image', currentFile);
+
+            const res = await fetch('/ai/ask', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            
+            const loadingElem = document.getElementById(loadingId);
+            if (loadingElem) loadingElem.remove();
+
+            if (data.error) {
+                chatWindow.innerHTML += `
+                    <div class="d-flex justify-content-start mb-3">
+                        <div class="bg-warning-subtle text-dark border border-warning rounded-3 p-3 shadow-sm text-start" style="max-width: 90%;">
+                            <i class="fa-solid fa-triangle-exclamation me-1 text-warning"></i> ${escapeHtml(data.error)}
+                        </div>
+                    </div>`;
+            } else {
+                chatWindow.innerHTML += `
+                    <div class="d-flex justify-content-start mb-3">
+                        <div class="bg-white border rounded-3 p-3 shadow-sm text-start" style="max-width: 90%; white-space: pre-wrap;">
+                            <div class="fw-bold text-primary mb-1 small"><i class="fa-solid fa-robot me-1"></i> Trợ lý eShop (Vector DB &amp; Vision)</div>
+                            <div>${escapeHtml(data.reply)}</div>
+                        </div>
+                    </div>`;
+            }
+        } catch (err) {
+            const loadingElem = document.getElementById(loadingId);
+            if (loadingElem) loadingElem.remove();
+            chatWindow.innerHTML += `
+                <div class="d-flex justify-content-start mb-3">
+                    <div class="bg-danger text-white rounded-3 p-3 shadow-sm text-start" style="max-width: 85%;">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i> Đã xảy ra lỗi kết nối. Vui lòng thử lại!
+                    </div>
+                </div>`;
+        } finally {
+            input.disabled = false;
+            sendBtn.disabled = false;
+            input.focus();
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+    }
+
+    async function clearChatHistory() {
+        if (!confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện trong CSDL và bắt đầu cuộc trò chuyện mới?')) {
+            return;
+        }
+        try {
+            await fetch('/ai/clear-history', { method: 'POST' });
+            window.location.reload();
+        } catch (err) {
+            alert('Lỗi khi xóa lịch sử chat: ' + err);
+        }
+    }
+
+    function escapeHtml(string) {
+        return String(string)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+</script>
+</body>
+</html>
