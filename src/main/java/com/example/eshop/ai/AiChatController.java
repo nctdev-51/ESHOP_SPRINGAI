@@ -150,4 +150,10 @@ public class AiChatController {
         }
         return "Khách vãng lai";
     }
+
+    @GetMapping("/vectors")
+    @ResponseBody
+    public List<ProductVectorStoreService.ProductDocument> getAllVectors() {
+        return vectorStoreService.getAllDocuments();
+    }
 }

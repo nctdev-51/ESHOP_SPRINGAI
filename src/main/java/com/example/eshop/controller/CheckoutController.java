@@ -60,8 +60,8 @@ public class CheckoutController {
             BindingResult bindingResult,
             Authentication auth,
             RedirectAttributes ra,
-            @RequestParam(required = false) String anonymousId,
-            @RequestParam(required = false) String sessionId
+            @RequestParam(name = "anonymousId", required = false) String anonymousId,
+            @RequestParam(name = "sessionId", required = false) String sessionId
     ) {
         if (cart.isEmpty()) {
             ra.addFlashAttribute("errorMessage", "Giỏ hàng của bạn đang trống!");
