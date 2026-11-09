@@ -5,12 +5,16 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -33,7 +37,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null && jwtService.validateToken(token)) {
             String username = jwtService.extractUsername(token);
 
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
+            boolean isAnonymous = currentAuth == null
+                    || currentAuth instanceof AnonymousAuthenticationToken
+                    || "anonymousUser".equals(currentAuth.getPrincipal())
+                    || currentAuth.getAuthorities().stream().anyMatch(a -> "ROLE_GUEST".equals(a.getAuthority()));
+
+            if (username != null && isAnonymous) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                 if (userDetails.isEnabled()) {
@@ -44,6 +54,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                    // Đồng bộ vào HttpSession để các filter và request sau luôn nhận diện được người dùng
+                    HttpSession session = request.getSession(false);
+                    if (session != null) {
+                        session.setAttribute(
+                                HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                                SecurityContextHolder.getContext()
+                        );
+                    }
                 }
             }
         }

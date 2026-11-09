@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -13,6 +14,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -73,20 +76,28 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/login", "/logout", "/ai/**", "/chat/**"))
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/login", "/logout", "/ai/**", "/chat/**", "/cart/**", "/checkout/**"))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.ALWAYS))
             .anonymous(a -> a.authorities("ROLE_GUEST"))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/uploads/**", "/favicon.ico", "/error", "/403").permitAll()
                 .requestMatchers("/", "/products", "/products/**", "/login", "/ai/**", "/chat", "/chat/**").permitAll()
                 .requestMatchers("/register").hasRole("GUEST")
-                .requestMatchers("/cart/**", "/checkout/**", "/orders/**").hasRole("CUSTOMER")
+                .requestMatchers("/cart/**", "/checkout/**", "/orders/**").hasAnyRole("CUSTOMER", "SELLER")
                 .requestMatchers("/admin/**").hasRole("SELLER")
                 .anyRequest().authenticated()
             )
             .exceptionHandling(e -> e
                 .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"))
-                .accessDeniedPage("/403")
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                    if (auth == null || auth instanceof AnonymousAuthenticationToken
+                            || auth.getAuthorities().stream().anyMatch(a -> "ROLE_GUEST".equals(a.getAuthority()))) {
+                        response.sendRedirect("/login");
+                    } else {
+                        response.sendRedirect("/403");
+                    }
+                })
             )
             .logout(l -> l
                 .logoutUrl("/logout")

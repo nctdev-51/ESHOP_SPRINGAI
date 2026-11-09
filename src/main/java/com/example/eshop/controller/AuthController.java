@@ -5,7 +5,9 @@ import com.example.eshop.entity.Role;
 import com.example.eshop.security.JwtService;
 import com.example.eshop.service.UserService;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -14,7 +16,9 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -44,6 +48,7 @@ public class AuthController {
     public String processLogin(
             @RequestParam("username") String username,
             @RequestParam("password") String password,
+            HttpServletRequest request,
             HttpServletResponse response,
             RedirectAttributes ra
     ) {
@@ -52,7 +57,16 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken(username, password)
             );
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authentication);
+            SecurityContextHolder.setContext(context);
+
+            // Lưu trực tiếp vào HttpSession để đồng bộ với cơ chế Session của Spring Security 6
+            HttpSession session = request.getSession(true);
+            session.setAttribute(
+                    HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                    context
+            );
 
             String role = authentication.getAuthorities().stream()
                     .map(GrantedAuthority::getAuthority)

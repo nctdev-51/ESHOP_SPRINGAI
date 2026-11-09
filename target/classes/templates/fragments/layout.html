@@ -42,6 +42,11 @@
                         <span class="badge ai-badge me-1"><i class="fa-solid fa-robot"></i> Trợ lý AI &amp; Tìm kiếm Ảnh</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/ai/vector-demo}">
+                        <span class="badge bg-success-subtle text-success border border-success me-1"><i class="fa-solid fa-brain"></i> Vector DB Lab</span>
+                    </a>
+                </li>
                 <!-- Menu cho CUSTOMER -->
                 <li class="nav-item" sec:authorize="hasRole('CUSTOMER')">
                     <a class="nav-link" th:href="@{/orders}"><i class="fa-solid fa-receipt me-1"></i> Đơn hàng của tôi</a>
